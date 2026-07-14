@@ -1,0 +1,274 @@
+use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
+
+use crate::domain::item::{ItemError, ItemKey, KillstreakTier, Quality};
+
+/// One price observation. Verified live against the real `IGetPrices/v4`
+/// response — several fields are nullable in practice (e.g. a
+/// non-tradable/non-craftable combo with no trade history at all).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PriceEntry {
+    pub value: Option<f64>,
+    pub currency: Option<String>,
+    #[serde(default)]
+    pub difference: Option<f64>,
+    #[serde(default)]
+    pub last_update: Option<i64>,
+    #[serde(default)]
+    pub value_high: Option<f64>,
+    #[serde(default)]
+    pub value_raw: Option<f64>,
+}
+
+/// The `Craftable`/`Non-Craftable` value under a quality's `Tradable`
+/// group is polymorphic depending on quality, verified live: plain items
+/// give a `Vec<PriceEntry>` (usually one entry); Unusual (quality 5) gives
+/// a map keyed by particle effect id instead. `#[serde(untagged)]` picks
+/// whichever shape matches — a JSON array can never also parse as a map,
+/// so this is unambiguous.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum CraftableEntry {
+    Plain(Vec<PriceEntry>),
+    ByEffect(HashMap<String, PriceEntry>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TradableGroup {
+    #[serde(rename = "Craftable")]
+    pub craftable: Option<CraftableEntry>,
+    #[serde(rename = "Non-Craftable")]
+    pub non_craftable: Option<CraftableEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct QualityPrices {
+    #[serde(rename = "Tradable")]
+    pub tradable: Option<TradableGroup>,
+    #[serde(rename = "Non-Tradable")]
+    pub non_tradable: Option<TradableGroup>,
+}
+
+/// One named catalog entry. `defindex` is a list because several
+/// defindexes (class-specific reskins etc.) can share one name/price —
+/// and, verified live, can include synthetic sentinel values like `-2`
+/// ("Random Craft Hat") that don't correspond to a real item, hence `i64`
+/// rather than our validated domain `u32`. `prices` is keyed by quality id
+/// as a string (matches the wire format).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PriceCatalogItem {
+    #[serde(default)]
+    pub defindex: Vec<i64>,
+    #[serde(default)]
+    pub prices: HashMap<String, QualityPrices>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PriceCatalogEnvelope {
+    pub response: PriceCatalogResponse,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PriceCatalogResponse {
+    pub success: i32,
+    pub current_time: i64,
+    #[serde(default)]
+    pub items: HashMap<String, PriceCatalogItem>,
+}
+
+/// A single listing update/removal from the live websocket feed. Kind is
+/// determined by `services::market_data_service` tracking which listing
+/// ids it's already seen — the wire protocol only distinguishes
+/// update-or-create (`listing-update`) from `listing-delete`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum ListingEventKind {
+    New,
+    Updated,
+    Removed,
+}
+
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct ListingEvent {
+    pub listing_id: String,
+    pub kind: ListingEventKind,
+    pub defindex: u32,
+    pub quality: u8,
+    pub effect_id: Option<u32>,
+    pub killstreak_tier: u8,
+    pub australium: bool,
+    pub festivized: bool,
+    pub craftable: bool,
+    pub intent: String,
+    pub steam_id: String,
+    pub steam_name: Option<String>,
+    /// Total listing value already normalized to ref by backpack.tf
+    /// (`payload.value.raw`).
+    pub value_ref: Option<f64>,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct WsEnvelope {
+    pub event: String,
+    pub payload: WsListingPayload,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct WsListingPayload {
+    pub id: String,
+    pub steamid: String,
+    pub intent: String,
+    #[serde(default)]
+    pub value: Option<WsValue>,
+    pub item: WsItem,
+    #[serde(default)]
+    pub user: Option<WsUser>,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct WsValue {
+    pub raw: f64,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct WsItem {
+    pub defindex: u32,
+    pub quality: WsQuality,
+    #[serde(default)]
+    pub particle: Option<WsParticle>,
+    // Verified live: present on real Strange/Killstreak/Australium/
+    // Festivized listings, absent otherwise (hence the defaults below).
+    #[serde(default, rename = "killstreakTier")]
+    pub killstreak_tier: Option<u8>,
+    #[serde(default)]
+    pub australium: Option<bool>,
+    #[serde(default)]
+    pub festivized: Option<bool>,
+    #[serde(default)]
+    pub craftable: Option<bool>,
+}
+
+impl WsItem {
+    /// Resolves the exact `ItemKey` (matching Module 2's full domain
+    /// model) — needed by `HistoryRecorder` so price history isn't
+    /// contaminated by mixing e.g. a Strange Australium weapon's prices
+    /// into the base weapon's trend.
+    // Consumed by Module 8's history_recorder service, not wired up yet.
+    #[allow(dead_code)]
+    pub(crate) fn item_key(&self) -> Result<ItemKey, ItemError> {
+        Ok(ItemKey {
+            defindex: self.defindex,
+            quality: Quality::try_from(self.quality.id)?,
+            effect_id: self.particle.as_ref().map(|p| p.id),
+            killstreak_tier: KillstreakTier::try_from(self.killstreak_tier.unwrap_or(0))?,
+            australium: self.australium.unwrap_or(false),
+            festivized: self.festivized.unwrap_or(false),
+            craftable: self.craftable.unwrap_or(true),
+        })
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct WsQuality {
+    pub id: u8,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct WsParticle {
+    pub id: u32,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct WsUser {
+    pub name: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn item_key_defaults_when_optional_fields_absent() {
+        let item = WsItem {
+            defindex: 45,
+            quality: WsQuality { id: 6 },
+            particle: None,
+            killstreak_tier: None,
+            australium: None,
+            festivized: None,
+            craftable: None,
+        };
+        let key = item.item_key().unwrap();
+        assert_eq!(key.killstreak_tier, KillstreakTier::None);
+        assert!(!key.australium);
+        assert!(!key.festivized);
+        assert!(key.craftable);
+    }
+
+    #[test]
+    fn item_key_resolves_strange_specialized_killstreak() {
+        // Real shape captured live: "Strange Specialized Killstreak Quick-Fix".
+        let item = WsItem {
+            defindex: 411,
+            quality: WsQuality { id: 11 },
+            particle: None,
+            killstreak_tier: Some(2),
+            australium: None,
+            festivized: None,
+            craftable: None,
+        };
+        let key = item.item_key().unwrap();
+        assert_eq!(key.killstreak_tier, KillstreakTier::Specialized);
+    }
+
+    #[test]
+    fn item_key_resolves_strange_festivized_killstreak() {
+        // Real shape captured live: "Strange Festivized Killstreak Sniper Rifle".
+        let item = WsItem {
+            defindex: 201,
+            quality: WsQuality { id: 11 },
+            particle: None,
+            killstreak_tier: Some(1),
+            australium: None,
+            festivized: Some(true),
+            craftable: Some(true),
+        };
+        let key = item.item_key().unwrap();
+        assert_eq!(key.killstreak_tier, KillstreakTier::Killstreak);
+        assert!(key.festivized);
+        assert!(key.craftable);
+    }
+
+    #[test]
+    fn item_key_resolves_strange_professional_killstreak_australium() {
+        // Real shape captured live: "Strange Professional Killstreak Australium
+        // Flame Thrower".
+        let item = WsItem {
+            defindex: 208,
+            quality: WsQuality { id: 11 },
+            particle: None,
+            killstreak_tier: Some(3),
+            australium: Some(true),
+            festivized: None,
+            craftable: Some(true),
+        };
+        let key = item.item_key().unwrap();
+        assert_eq!(key.killstreak_tier, KillstreakTier::Professional);
+        assert!(key.australium);
+    }
+
+    #[test]
+    fn item_key_rejects_unknown_quality() {
+        let item = WsItem {
+            defindex: 1,
+            quality: WsQuality { id: 99 },
+            particle: None,
+            killstreak_tier: None,
+            australium: None,
+            festivized: None,
+            craftable: None,
+        };
+        assert!(item.item_key().is_err());
+    }
+}

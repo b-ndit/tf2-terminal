@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+/*
+ * TF2 quality colors are the game's real, stable conventions (unchanged
+ * since ~2011) — used as the accent system throughout the UI, per
+ * docs/DESIGN.md §9.
+ */
+@theme {
+  --color-charcoal: #17181c;
+  --color-charcoal-raised: #1f2025;
+  --color-charcoal-border: #2a2b31;
+
+  --color-quality-normal: #b2b2b2;
+  --color-quality-genuine: #4d7455;
+  --color-quality-vintage: #476291;
+  --color-quality-unusual: #8650ac;
+  --color-quality-unique: #ffd700;
+  --color-quality-community: #70b04a;
+  --color-quality-valve: #a50f79;
+  --color-quality-selfmade: #70b04a;
+  --color-quality-customized: #fafafa;
+  --color-quality-strange: #cf6a32;
+  --color-quality-completed: #fafafa;
+  --color-quality-haunted: #38f3ab;
+  --color-quality-collectors: #aa0000;
+  --color-quality-decorated: #fafafa;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-charcoal);
+  color: #e4e4e7;
+  font-family:
+    Inter,
+    Avenir,
+    Helvetica,
+    Arial,
+    sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
