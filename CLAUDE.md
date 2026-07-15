@@ -18,5 +18,5 @@ implementation roadmap.
 - Unit tests for all domain logic
 
 ## Current status
-Modules 0–11 complete (Foundation through Flip Finder).
-Ready to begin Module 12 (Portfolio + Trade History).
+Modules 0–12 complete (Foundation through Portfolio + Trade History).
+Ready to begin Module 13 (Simulator + Advanced Search).

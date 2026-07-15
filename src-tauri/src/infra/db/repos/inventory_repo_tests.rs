@@ -223,6 +223,7 @@ async fn list_with_items_joins_item_metadata() {
     let views = InventoryRepo::list_with_items(&pool, "sid").await.unwrap();
     assert_eq!(views.len(), 1);
     assert_eq!(views[0].name, "Mann Co. Supply Crate Key");
+    assert_eq!(views[0].defindex, 5021);
     assert_eq!(views[0].craft_number, Some(42));
 
     pool.close().await;

@@ -10,7 +10,7 @@
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use specta::Type;
 use sqlx::SqlitePool;
 
@@ -36,13 +36,32 @@ use crate::services::item_valuation::{value_item_key, ItemValuation};
 const PARTNER_ITEMS_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
 const PARTNER_ITEMS_CACHE_KEY_PREFIX: &str = "steam_trade:partner_items:";
 
-#[derive(Debug, Clone, Serialize, Type)]
+/// Module 12's `TradeHistoryService` can't re-resolve a trade's items once
+/// it completes (they've changed hands — "given" items left the user's
+/// inventory, "received" items get new asset ids under the new owner), so
+/// this module caches every resolved analysis while the offer is still
+/// active. ~14 days comfortably covers the gap between an offer going
+/// active and completing, even if the app isn't running continuously.
+const TRADE_ANALYSIS_CACHE_TTL: Duration = Duration::from_secs(14 * 24 * 3600);
+const TRADE_ANALYSIS_CACHE_KEY_PREFIX: &str = "trade_analysis:";
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct TradeItemView {
     pub name: String,
     /// `None` when the item couldn't be resolved/priced at all — the
     /// frontend should render this distinctly from a legitimately
     /// zero-value item.
     pub estimated_ref: Option<f64>,
+}
+
+/// What Module 12 actually needs from a resolved offer, cached under
+/// `TRADE_ANALYSIS_CACHE_KEY_PREFIX{trade_offer_id}`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CachedTradeAnalysis {
+    pub partner_steam_id: String,
+    pub given: Vec<TradeItemView>,
+    pub received: Vec<TradeItemView>,
+    pub net_ref: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Type)]
@@ -148,7 +167,7 @@ pub async fn get_active_trades(state: &AppState) -> AppResult<Vec<AnalyzedTradeO
             None => (None, None, None),
         };
 
-        results.push(AnalyzedTradeOffer {
+        let analyzed = AnalyzedTradeOffer {
             trade_offer_id: offer.tradeofferid.to_string(),
             partner_steam_id: partner_steam_id.to_string(),
             message: offer.message.clone(),
@@ -165,10 +184,44 @@ pub async fn get_active_trades(state: &AppState) -> AppResult<Vec<AnalyzedTradeO
             counteroffer_additional_ref,
             counteroffer_additional_keys,
             counteroffer_additional_metal_ref,
-        });
+        };
+
+        cache_trade_analysis(&state.db, &analyzed).await;
+
+        results.push(analyzed);
     }
 
     Ok(results)
+}
+
+/// Builds the cache key both this writer and Module 12's
+/// `TradeHistoryService` reader use, so the two never drift.
+pub fn trade_analysis_cache_key(trade_offer_id: &str) -> String {
+    format!("{TRADE_ANALYSIS_CACHE_KEY_PREFIX}{trade_offer_id}")
+}
+
+/// Best-effort: a failed cache write shouldn't interrupt trade analysis —
+/// same "don't let one bad write break the loop" pattern as
+/// `market_data_service.rs::persist_listing_event`. Worst case, Module 12
+/// falls back to an unresolved ledger entry for this trade later.
+async fn cache_trade_analysis(pool: &SqlitePool, analyzed: &AnalyzedTradeOffer) {
+    let cached = CachedTradeAnalysis {
+        partner_steam_id: analyzed.partner_steam_id.clone(),
+        given: analyzed.given_items.clone(),
+        received: analyzed.received_items.clone(),
+        net_ref: analyzed.net_ref,
+    };
+    let Ok(json) = serde_json::to_vec(&cached) else {
+        return;
+    };
+    let cache_key = trade_analysis_cache_key(&analyzed.trade_offer_id);
+    if let Err(e) = KvCacheRepo::set(pool, &cache_key, &json, TRADE_ANALYSIS_CACHE_TTL).await {
+        tracing::warn!(
+            error = %e,
+            trade_offer_id = %analyzed.trade_offer_id,
+            "failed to cache trade analysis for later ledger import"
+        );
+    }
 }
 
 struct SideValuation {

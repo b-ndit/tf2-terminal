@@ -30,6 +30,10 @@ pub struct ExistingAsset {
 pub struct InventoryItemView {
     pub asset_id: String,
     pub item_id: i64,
+    /// Added in Module 12 — `PortfolioService` needs the full `ItemKey`
+    /// (defindex included) to reuse `item_valuation::value_item_key`;
+    /// nothing before this needed it off this particular view.
+    pub defindex: i64,
     pub name: String,
     pub quality: i64,
     pub effect_id: Option<i64>,
@@ -178,7 +182,7 @@ impl InventoryRepo {
         let rows = sqlx::query_as::<_, InventoryItemView>(
             r#"
             SELECT
-                inv.asset_id, inv.item_id, it.name, it.quality, it.effect_id, it.killstreak_tier,
+                inv.asset_id, inv.item_id, it.defindex, it.name, it.quality, it.effect_id, it.killstreak_tier,
                 it.australium, it.festivized, it.craftable,
                 inv.craft_number, inv.paint_id, inv.strange_count, inv.tradable, inv.marketable,
                 inv.acquired_ts, inv.last_seen_ts

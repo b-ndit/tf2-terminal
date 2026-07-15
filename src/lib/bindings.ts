@@ -89,6 +89,26 @@ export const commands = {
 	addToWatchlist: (url: string) => typedError<null, AppError>(__TAURI_INVOKE("add_to_watchlist", { url })),
 	removeFromWatchlist: (itemId: number | null) => typedError<null, AppError>(__TAURI_INVOKE("remove_from_watchlist", { itemId })),
 	listWatchlist: () => typedError<WatchlistItemView[], AppError>(__TAURI_INVOKE("list_watchlist")),
+	/**
+	 *  Values the whole current inventory and persists + returns a fresh
+	 *  snapshot — the "on-demand" half of Module 12's "daily and on-demand
+	 *  valuation snapshots" (§6); the daily half is
+	 *  `portfolio_service::spawn_periodic_snapshot`, spawned in `app::build()`.
+	 */
+	getPortfolioSnapshot: () => typedError<PortfolioSnapshotView, AppError>(__TAURI_INVOKE("get_portfolio_snapshot")),
+	getPortfolioHistory: (days: number) => typedError<PortfolioSnapshotView[], AppError>(__TAURI_INVOKE("get_portfolio_history", { days })),
+	getPlWindows: () => typedError<PlWindowsView, AppError>(__TAURI_INVOKE("get_pl_windows")),
+	getWinnersLosers: (windowDays: number) => typedError<ItemMoverView[], AppError>(__TAURI_INVOKE("get_winners_losers", { windowDays })),
+	/**
+	 *  Fetches newly-completed Steam trade offers and imports them into the
+	 *  ledger — see the Module 12 note in `services::trade_history_service`
+	 *  for how completed items get resolved (promoting Module 9's cached
+	 *  active-offer analysis) versus falling back to unresolved placeholders.
+	 */
+	syncCompletedTrades: () => typedError<TradeSyncSummary, AppError>(__TAURI_INVOKE("sync_completed_trades")),
+	listTrades: (limit: number) => typedError<TradeLedgerView[], AppError>(__TAURI_INVOKE("list_trades", { limit })),
+	setTradeRating: (tradeOfferId: string, rating: number | null) => typedError<null, AppError>(__TAURI_INVOKE("set_trade_rating", { tradeOfferId, rating })),
+	setTradeNotes: (tradeOfferId: string, notes: string | null) => typedError<null, AppError>(__TAURI_INVOKE("set_trade_notes", { tradeOfferId, notes })),
 };
 
 /** Events */
@@ -283,6 +303,22 @@ export type ItemMeta = {
 	custom_label: string | null,
 };
 
+export type ItemMoverView = {
+	item_name: string,
+	count: number,
+	/**
+	 *  Current per-unit value; `None` if this item couldn't be priced at
+	 *  all (matches the "unresolved" convention elsewhere — Modules 9/11).
+	 */
+	current_value_ref: number | null,
+	change_pct: number | null,
+};
+
+export type LedgerItemView = {
+	name: string,
+	value_ref: number | null,
+};
+
 export type ListingEvent = {
 	listing_id: string,
 	kind: ListingEventKind,
@@ -332,6 +368,28 @@ export type ListingRow = {
 	age_hours: number | null,
 };
 
+export type PlWindowView = {
+	abs_ref: number | null,
+	pct: number | null,
+};
+
+export type PlWindowsView = {
+	d1: PlWindowView | null,
+	d7: PlWindowView | null,
+	d30: PlWindowView | null,
+};
+
+export type PortfolioSnapshotView = {
+	ts: number | null,
+	total_ref: number | null,
+	total_keys: number | null,
+	pure_keys: number,
+	pure_metal_ref: number | null,
+	item_count: number,
+	unusual_count: number,
+	australium_count: number,
+};
+
 /**
  *  One daily OHLC bar (`price_daily`), for a charting panel. `ts` is a unix
  *  timestamp in seconds — Specta forbids exporting `i64` to TypeScript, and
@@ -378,6 +436,22 @@ export type TradeItemView = {
 	 *  zero-value item.
 	 */
 	estimated_ref: number | null,
+};
+
+export type TradeLedgerView = {
+	trade_offer_id: string,
+	partner_steam_id: string,
+	completed_ts: number | null,
+	given: LedgerItemView[],
+	received: LedgerItemView[],
+	net_value_ref: number | null,
+	rating: number | null,
+	notes: string | null,
+};
+
+export type TradeSyncSummary = {
+	checked: number,
+	imported: number,
 };
 
 export type WatchlistItemView = {

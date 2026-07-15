@@ -10,6 +10,10 @@ const GET_TRADE_OFFERS_URL: &str = "https://api.steampowered.com/IEconService/Ge
 /// aren't something a passive "analysis only" tool (`docs/DESIGN.md` §2)
 /// can usefully act on yet.
 const TRADE_OFFER_STATE_ACTIVE: i32 = 2;
+/// `ETradeOfferState::k_ETradeOfferStateAccepted` — a completed trade,
+/// Module 12's `TradeHistoryService` imports these into the `trades`
+/// ledger.
+const TRADE_OFFER_STATE_ACCEPTED: i32 = 3;
 
 /// One item reference within a trade offer. Steam quotes `assetid` as a
 /// JSON string (it can exceed a JS-safe integer), which conveniently
@@ -32,11 +36,19 @@ pub struct TradeOffer {
     #[serde(default)]
     pub items_to_receive: Vec<TradeOfferAsset>,
     pub time_created: i64,
+    /// Last state-change time — Steam bumps this on every transition, so
+    /// for an Accepted offer this is effectively "when the trade
+    /// completed" (Module 12's `trades.completed_ts`).
+    pub time_updated: i64,
 }
 
 impl TradeOffer {
     pub fn is_active(&self) -> bool {
         self.trade_offer_state == TRADE_OFFER_STATE_ACTIVE
+    }
+
+    pub fn is_accepted(&self) -> bool {
+        self.trade_offer_state == TRADE_OFFER_STATE_ACCEPTED
     }
 }
 
@@ -49,6 +61,8 @@ struct Envelope {
 struct TradeOffersResult {
     #[serde(default)]
     trade_offers_received: Vec<TradeOffer>,
+    #[serde(default)]
+    trade_offers_sent: Vec<TradeOffer>,
 }
 
 pub struct SteamTradeOfferClient<'a> {
@@ -85,6 +99,36 @@ impl<'a> SteamTradeOfferClient<'a> {
             .filter(TradeOffer::is_active)
             .collect())
     }
+
+    /// Completed trades (either sent or received — Module 12's ledger
+    /// doesn't care which side initiated) updated at or after `since_ts`.
+    /// `historical_only=1` requires `time_historical_cutoff`; `active_only`
+    /// is deliberately *not* set (its default already includes historical
+    /// states when paired with `historical_only`).
+    pub async fn fetch_completed_offers(&self, since_ts: i64) -> AppResult<Vec<TradeOffer>> {
+        let cutoff = since_ts.to_string();
+        let envelope: Envelope = self
+            .api
+            .get_json(
+                GET_TRADE_OFFERS_URL,
+                &[
+                    ("key", self.api_key.as_str()),
+                    ("get_received_offers", "1"),
+                    ("get_sent_offers", "1"),
+                    ("historical_only", "1"),
+                    ("time_historical_cutoff", cutoff.as_str()),
+                ],
+            )
+            .await?;
+
+        Ok(envelope
+            .response
+            .trade_offers_received
+            .into_iter()
+            .chain(envelope.response.trade_offers_sent)
+            .filter(TradeOffer::is_accepted)
+            .collect())
+    }
 }
 
 #[cfg(test)]
@@ -103,13 +147,15 @@ mod tests {
                         "trade_offer_state": 2,
                         "items_to_give": [{"assetid": "111"}],
                         "items_to_receive": [{"assetid": "222"}, {"assetid": "333"}],
-                        "time_created": 1700000000
+                        "time_created": 1700000000,
+                        "time_updated": 1700000000
                     },
                     {
                         "tradeofferid": 6234567890123456790,
                         "accountid_other": 987654321,
                         "trade_offer_state": 6,
-                        "time_created": 1700000001
+                        "time_created": 1700000001,
+                        "time_updated": 1700000002
                     }
                 ]
             }
@@ -136,7 +182,8 @@ mod tests {
                         "tradeofferid": 1,
                         "accountid_other": 2,
                         "trade_offer_state": 2,
-                        "time_created": 3
+                        "time_created": 3,
+                        "time_updated": 4
                     }
                 ]
             }
@@ -153,5 +200,40 @@ mod tests {
         let json = r#"{"response": {}}"#;
         let envelope: Envelope = serde_json::from_str(json).unwrap();
         assert!(envelope.response.trade_offers_received.is_empty());
+        assert!(envelope.response.trade_offers_sent.is_empty());
+    }
+
+    #[test]
+    fn is_accepted_is_true_only_for_state_3() {
+        let json = r#"{
+            "response": {
+                "trade_offers_received": [
+                    {"tradeofferid": 1, "accountid_other": 2, "trade_offer_state": 3, "time_created": 1, "time_updated": 5},
+                    {"tradeofferid": 2, "accountid_other": 2, "trade_offer_state": 2, "time_created": 1, "time_updated": 1}
+                ]
+            }
+        }"#;
+        let envelope: Envelope = serde_json::from_str(json).unwrap();
+        assert!(envelope.response.trade_offers_received[0].is_accepted());
+        assert!(!envelope.response.trade_offers_received[1].is_accepted());
+    }
+
+    #[test]
+    fn parses_sent_offers_separately_from_received() {
+        let json = r#"{
+            "response": {
+                "trade_offers_received": [
+                    {"tradeofferid": 1, "accountid_other": 2, "trade_offer_state": 3, "time_created": 1, "time_updated": 5}
+                ],
+                "trade_offers_sent": [
+                    {"tradeofferid": 2, "accountid_other": 3, "trade_offer_state": 3, "time_created": 2, "time_updated": 6}
+                ]
+            }
+        }"#;
+        let envelope: Envelope = serde_json::from_str(json).unwrap();
+        assert_eq!(envelope.response.trade_offers_received.len(), 1);
+        assert_eq!(envelope.response.trade_offers_sent.len(), 1);
+        assert_eq!(envelope.response.trade_offers_sent[0].tradeofferid, 2);
+        assert_eq!(envelope.response.trade_offers_sent[0].time_updated, 6);
     }
 }

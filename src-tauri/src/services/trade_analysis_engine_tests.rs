@@ -195,3 +195,47 @@ async fn fetch_partner_items_cached_returns_cached_items_without_a_network_call(
     pool.close().await;
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[tokio::test]
+async fn cache_trade_analysis_writes_a_retrievable_entry_for_module_12() {
+    let (pool, dir) = test_pool().await;
+    let analyzed = AnalyzedTradeOffer {
+        trade_offer_id: "999".to_string(),
+        partner_steam_id: "76561198000000001".to_string(),
+        message: "gz".to_string(),
+        time_created: 1000.0,
+        given_items: vec![TradeItemView {
+            name: "Key".to_string(),
+            estimated_ref: Some(60.0),
+        }],
+        received_items: vec![TradeItemView {
+            name: "Hat".to_string(),
+            estimated_ref: Some(80.0),
+        }],
+        stars: 5,
+        given_total_ref: 60.0,
+        received_total_ref: 80.0,
+        net_ref: 20.0,
+        roi_pct: Some(33.3),
+        risk: "low".to_string(),
+        explanation: vec![],
+        counteroffer_additional_ref: None,
+        counteroffer_additional_keys: None,
+        counteroffer_additional_metal_ref: None,
+    };
+
+    cache_trade_analysis(&pool, &analyzed).await;
+
+    let cache_key = trade_analysis_cache_key("999");
+    let cached = KvCacheRepo::get(&pool, &cache_key).await.unwrap().unwrap();
+    let parsed: CachedTradeAnalysis = serde_json::from_slice(&cached).unwrap();
+
+    assert_eq!(parsed.partner_steam_id, "76561198000000001");
+    assert_eq!(parsed.given.len(), 1);
+    assert_eq!(parsed.given[0].name, "Key");
+    assert_eq!(parsed.received[0].estimated_ref, Some(80.0));
+    assert_eq!(parsed.net_ref, 20.0);
+
+    pool.close().await;
+    std::fs::remove_dir_all(&dir).ok();
+}

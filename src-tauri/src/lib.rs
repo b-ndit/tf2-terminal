@@ -62,6 +62,14 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::flip_finder::add_to_watchlist,
             commands::flip_finder::remove_from_watchlist,
             commands::flip_finder::list_watchlist,
+            commands::portfolio::get_portfolio_snapshot,
+            commands::portfolio::get_portfolio_history,
+            commands::portfolio::get_pl_windows,
+            commands::portfolio::get_winners_losers,
+            commands::trade_history::sync_completed_trades,
+            commands::trade_history::list_trades,
+            commands::trade_history::set_trade_rating,
+            commands::trade_history::set_trade_notes,
         ])
         .events(collect_events![
             commands::inventory::InventoryChanged,
