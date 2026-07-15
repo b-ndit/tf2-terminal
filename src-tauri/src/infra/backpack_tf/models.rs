@@ -81,7 +81,7 @@ pub struct PriceCatalogResponse {
 /// determined by `services::market_data_service` tracking which listing
 /// ids it's already seen — the wire protocol only distinguishes
 /// update-or-create (`listing-update`) from `listing-delete`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, specta::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum ListingEventKind {
     New,
@@ -89,7 +89,11 @@ pub enum ListingEventKind {
     Removed,
 }
 
-#[derive(Debug, Clone, Serialize, specta::Type)]
+/// Also `Deserialize` (added for Module 14) so a `market_provider` plugin's
+/// `provide_listings` JSON output can be parsed directly into this type —
+/// the same shape every other market data source already feeds into
+/// `MarketDataService`'s broadcast bus.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct ListingEvent {
     pub listing_id: String,
     pub kind: ListingEventKind,

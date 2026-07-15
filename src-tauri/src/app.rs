@@ -8,10 +8,11 @@ use tracing_appender::non_blocking::WorkerGuard;
 use crate::error::AppResult;
 use crate::infra::config::{AppPaths, Config};
 use crate::infra::db;
+use crate::infra::plugins::runtime::PluginRuntime;
 use crate::infra::steam::SteamApiClient;
 use crate::services::history_recorder::HistoryRecorder;
 use crate::services::market_data_service::MarketDataService;
-use crate::services::portfolio_service;
+use crate::services::{plugin_service, portfolio_service};
 use crate::telemetry;
 
 /// Per `docs/DESIGN.md` §6's Module 8 implementation note: periodic
@@ -20,6 +21,10 @@ const PRICE_SNAPSHOT_INTERVAL: Duration = Duration::from_secs(15 * 60);
 /// Module 12's "daily ... valuation snapshots" (§6) — the "on-demand" half
 /// is `commands::portfolio::get_portfolio_snapshot`.
 const PORTFOLIO_SNAPSHOT_INTERVAL: Duration = Duration::from_secs(24 * 3600);
+/// Module 14's `market_provider` plugin poll — same cadence as the price
+/// snapshot loop, since both are "how fresh does this need to be" calls
+/// of a similar shape.
+const PLUGIN_MARKET_PROVIDER_POLL_INTERVAL: Duration = Duration::from_secs(15 * 60);
 
 /// DI container: every service/command reaches shared infrastructure
 /// (config, DB pool, paths) through this, managed as Tauri state.
@@ -39,6 +44,7 @@ pub struct AppState {
     pub paths: AppPaths,
     pub steam_api: SteamApiClient,
     pub market_data: Arc<MarketDataService>,
+    pub plugin_runtime: Arc<PluginRuntime>,
     _log_guard: WorkerGuard,
 }
 
@@ -69,12 +75,23 @@ pub async fn build() -> AppResult<AppState> {
         PORTFOLIO_SNAPSHOT_INTERVAL,
     );
 
+    let plugin_runtime = Arc::new(PluginRuntime::new()?);
+    plugin_service::load_enabled_plugins(&paths, &db, &plugin_runtime).await?;
+    plugin_service::spawn_market_provider_poll(
+        db.clone(),
+        plugin_runtime.clone(),
+        reqwest::Client::new(),
+        market_data.clone(),
+        PLUGIN_MARKET_PROVIDER_POLL_INTERVAL,
+    );
+
     Ok(AppState {
         config,
         db,
         paths,
         steam_api: SteamApiClient::new(),
         market_data,
+        plugin_runtime,
         _log_guard,
     })
 }

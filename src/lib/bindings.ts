@@ -122,6 +122,22 @@ export const commands = {
 	 *  (owned, by asset id) vs "receive" (hypothetical, by `ItemKey`) differ.
 	 */
 	simulateTrade: (givenAssetIds: string[], receivedItemKeys: ItemKeyInput[]) => typedError<SimulatedTradeView, AppError>(__TAURI_INVOKE("simulate_trade", { givenAssetIds, receivedItemKeys })),
+	/**
+	 *  Installs a plugin from a local directory containing `plugin.toml` and
+	 *  its `entry` wasm file — the frontend shows the parsed manifest's
+	 *  requested capabilities and asks the user to confirm before calling
+	 *  this (`docs/DESIGN.md` §8: "user approves capabilities on install").
+	 */
+	installPlugin: (sourceDir: string) => typedError<PluginSummary, AppError>(__TAURI_INVOKE("install_plugin", { sourceDir })),
+	listPlugins: () => typedError<PluginSummary[], AppError>(__TAURI_INVOKE("list_plugins")),
+	setPluginEnabled: (name: string, enabled: boolean) => typedError<null, AppError>(__TAURI_INVOKE("set_plugin_enabled", { name, enabled })),
+	uninstallPlugin: (name: string) => typedError<null, AppError>(__TAURI_INVOKE("uninstall_plugin", { name })),
+	/**
+	 *  `Some(path)` the frontend loads into a sandboxed
+	 *  `<iframe sandbox="allow-scripts">` via `convertFileSrc` — `None` if the
+	 *  plugin has no `panel/index.html`.
+	 */
+	getPluginPanelPath: (name: string) => typedError<string | null, AppError>(__TAURI_INVOKE("get_plugin_panel_path", { name })),
 };
 
 /** Events */
@@ -358,6 +374,12 @@ export type LedgerItemView = {
 	value_ref: number | null,
 };
 
+/**
+ *  Also `Deserialize` (added for Module 14) so a `market_provider` plugin's
+ *  `provide_listings` JSON output can be parsed directly into this type —
+ *  the same shape every other market data source already feeds into
+ *  `MarketDataService`'s broadcast bus.
+ */
 export type ListingEvent = {
 	listing_id: string,
 	kind: ListingEventKind,
@@ -416,6 +438,16 @@ export type PlWindowsView = {
 	d1: PlWindowView | null,
 	d7: PlWindowView | null,
 	d30: PlWindowView | null,
+};
+
+export type PluginSummary = {
+	name: string,
+	version: string,
+	capabilities: string[],
+	events: string[],
+	has_panel: boolean,
+	enabled: boolean,
+	installed_ts: number | null,
 };
 
 export type PortfolioSnapshotView = {

@@ -1,0 +1,5 @@
+name = "sample-plugin"
+version = "0.1.0"
+entry = "sample_plugin.wasm"
+capabilities = ["market:read", "notify:send"]
+events = ["alert_fired", "market_provider"]

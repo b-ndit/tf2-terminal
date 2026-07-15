@@ -1,0 +1,17 @@
+[package]
+name = "tf2-terminal-plugin-sdk"
+version = "0.1.0"
+edition = "2021"
+description = "Safe Rust wrappers over the TF2 Terminal plugin host ABI (Module 14)"
+license = "MIT"
+
+# Not a member of any Cargo workspace on purpose — see the Module 14
+# implementation note in docs/DESIGN.md: this and sample-plugin/ build for
+# wasm32-wasip1, a different target than src-tauri, and keeping them
+# outside src-tauri's workspace means CI's existing backend job (which
+# only ever runs `cargo` from inside src-tauri) never has to know either
+# crate exists.
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

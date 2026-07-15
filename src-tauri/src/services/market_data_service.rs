@@ -97,6 +97,38 @@ impl MarketDataService {
         self.recent.lock().await.iter().cloned().collect()
     }
 
+    /// Persists, buffers, and broadcasts one event — the single place
+    /// every ingestion path (the real websocket loop, and Module 14's
+    /// plugin `market_provider` injection) funnels through, so downstream
+    /// consumers (History Recorder, Live Feed, Flip Finder, Alerts) never
+    /// need to know which source an event came from.
+    async fn handle_event(&self, pool: &sqlx::SqlitePool, event: ListingEvent) {
+        persist_listing_event(pool, &event).await;
+
+        {
+            let mut recent = self.recent.lock().await;
+            if recent.len() >= RECENT_EVENTS_CAP {
+                recent.pop_front();
+            }
+            recent.push_back(event.clone());
+        }
+        let _ = self.events_tx.send(event);
+    }
+
+    /// Feeds externally-sourced listings (a Module 14 `market_provider`
+    /// plugin's `provide_listings` output) into the exact same bus the
+    /// real backpack.tf websocket feeds — every existing consumer picks
+    /// these up with zero changes.
+    pub async fn inject_external_listings(
+        &self,
+        pool: &sqlx::SqlitePool,
+        events: Vec<ListingEvent>,
+    ) {
+        for event in events {
+            self.handle_event(pool, event).await;
+        }
+    }
+
     /// Spawns the websocket consumer as a background task for the process's
     /// lifetime. No Steam login or API key required — this runs whenever
     /// the app is open. Also persists each event into `market_listings`
@@ -126,16 +158,7 @@ impl MarketDataService {
                     }
                 };
 
-                persist_listing_event(&pool, &event).await;
-
-                {
-                    let mut recent = service.recent.lock().await;
-                    if recent.len() >= RECENT_EVENTS_CAP {
-                        recent.pop_front();
-                    }
-                    recent.push_back(event.clone());
-                }
-                let _ = service.events_tx.send(event);
+                service.handle_event(&pool, event).await;
             }
         });
     }

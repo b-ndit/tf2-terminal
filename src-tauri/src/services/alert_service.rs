@@ -41,7 +41,9 @@ use crate::infra::db::repos::market_listings_repo::MarketListingsRepo;
 use crate::infra::db::repos::price_history_repo::PriceDailyRepo;
 use crate::infra::keychain::{keys, Keychain};
 use crate::infra::notify;
+use crate::infra::plugins::runtime::PluginRuntime;
 use crate::services::market_data_service::MarketDataService;
+use crate::services::plugin_service;
 
 const DAY_SECONDS: i64 = 86_400;
 
@@ -234,6 +236,7 @@ async fn record_and_dispatch(
     app: &AppHandle,
     db: &SqlitePool,
     http: &reqwest::Client,
+    plugin_runtime: &Arc<PluginRuntime>,
     fired: FiredAlert,
     fired_ts: i64,
 ) {
@@ -285,15 +288,19 @@ async fn record_and_dispatch(
         }
     }
 
-    let _ = AlertFired {
+    let alert_fired = AlertFired {
         rule_id: fired.rule_id,
         item_name: fired.item_name,
         kind: fired.kind.as_str().to_string(),
         message: fired.message,
         fired_ts: fired_ts as f64,
         channels: fired.channels,
-    }
-    .emit(app);
+    };
+    // Best-effort, same as every Rust-side sink above — Module 14 plugins
+    // subscribed to `alert_fired` (host_functions::HostContext gates what
+    // each one is actually allowed to do with it).
+    plugin_service::dispatch_alert_to_plugins(db, plugin_runtime, http, &alert_fired).await;
+    let _ = alert_fired.emit(app);
 }
 
 /// Spawns the event-driven rule loop for the process's lifetime.
@@ -301,7 +308,12 @@ async fn record_and_dispatch(
 /// Uses `tauri::async_runtime::spawn`, not `tokio::spawn` — see the note
 /// in `live_feed::spawn_relay`; both are called from `.setup()`, which
 /// doesn't run inside an entered Tokio runtime on the calling thread.
-pub fn spawn(app: AppHandle, db: SqlitePool, market_data: Arc<MarketDataService>) {
+pub fn spawn(
+    app: AppHandle,
+    db: SqlitePool,
+    market_data: Arc<MarketDataService>,
+    plugin_runtime: Arc<PluginRuntime>,
+) {
     let http = reqwest::Client::new();
     let mut events = market_data.subscribe();
     tauri::async_runtime::spawn(async move {
@@ -319,7 +331,8 @@ pub fn spawn(app: AppHandle, db: SqlitePool, market_data: Arc<MarketDataService>
             match find_fired_alerts_for_event(&db, &event).await {
                 Ok(fired_alerts) => {
                     for fired in fired_alerts {
-                        record_and_dispatch(&app, &db, &http, fired, fired_ts).await;
+                        record_and_dispatch(&app, &db, &http, &plugin_runtime, fired, fired_ts)
+                            .await;
                     }
                 }
                 Err(e) => {
@@ -332,7 +345,12 @@ pub fn spawn(app: AppHandle, db: SqlitePool, market_data: Arc<MarketDataService>
 
 /// Spawns the periodic hist_low/hist_high sweep for the process's
 /// lifetime, checking every `interval`.
-pub fn spawn_daily_rollup_check(app: AppHandle, db: SqlitePool, interval: Duration) {
+pub fn spawn_daily_rollup_check(
+    app: AppHandle,
+    db: SqlitePool,
+    plugin_runtime: Arc<PluginRuntime>,
+    interval: Duration,
+) {
     let http = reqwest::Client::new();
     tauri::async_runtime::spawn(async move {
         loop {
@@ -341,7 +359,8 @@ pub fn spawn_daily_rollup_check(app: AppHandle, db: SqlitePool, interval: Durati
             match find_fired_hist_alerts(&db, fired_ts).await {
                 Ok(fired_alerts) => {
                     for fired in fired_alerts {
-                        record_and_dispatch(&app, &db, &http, fired, fired_ts).await;
+                        record_and_dispatch(&app, &db, &http, &plugin_runtime, fired, fired_ts)
+                            .await;
                     }
                 }
                 Err(e) => tracing::warn!(error = %e, "daily rollup alert check failed"),

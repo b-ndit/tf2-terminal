@@ -4,6 +4,7 @@ pub mod flip_finder;
 pub mod inventory;
 pub mod market;
 pub mod organization;
+pub mod plugins;
 pub mod portfolio;
 pub mod schema;
 pub mod search;

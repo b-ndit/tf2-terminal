@@ -67,6 +67,12 @@ impl AppPaths {
     pub fn log_dir(&self) -> PathBuf {
         self.data_dir.join("logs")
     }
+
+    /// Root directory installed plugins live under —
+    /// `plugins_dir().join(sanitized_name)` per plugin (Module 14).
+    pub fn plugins_dir(&self) -> PathBuf {
+        self.data_dir.join("plugins")
+    }
 }
 
 impl Config {

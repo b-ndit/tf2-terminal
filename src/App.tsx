@@ -8,6 +8,7 @@ import { StatsBar } from "./features/backpack/StatsBar";
 import { FlipFinder } from "./features/flip-finder/FlipFinder";
 import { LiveFeed } from "./features/live-feed/LiveFeed";
 import { MarketAnalyzer } from "./features/market-analyzer/MarketAnalyzer";
+import { Plugins } from "./features/plugins/Plugins";
 import { Portfolio } from "./features/portfolio/Portfolio";
 import { Simulator } from "./features/simulator/Simulator";
 import { TradeAnalyzer } from "./features/trade-analyzer/TradeAnalyzer";
@@ -22,7 +23,8 @@ type WorkspaceTab =
   | "flip-finder"
   | "portfolio"
   | "trade-history"
-  | "simulator";
+  | "simulator"
+  | "plugins";
 
 function App() {
   const { data: steamId, isLoading: steamIdLoading } = useSteamId();
@@ -95,6 +97,9 @@ function Workspace({ steamId }: { steamId: string }) {
             <TabButton active={tab === "simulator"} onClick={() => setTab("simulator")}>
               Simulator
             </TabButton>
+            <TabButton active={tab === "plugins"} onClick={() => setTab("plugins")}>
+              Plugins
+            </TabButton>
           </nav>
         </div>
         <div className="flex gap-2">
@@ -147,8 +152,10 @@ function Workspace({ steamId }: { steamId: string }) {
         <Portfolio />
       ) : tab === "trade-history" ? (
         <TradeHistory />
-      ) : (
+      ) : tab === "simulator" ? (
         <Simulator />
+      ) : (
+        <Plugins />
       )}
     </div>
   );

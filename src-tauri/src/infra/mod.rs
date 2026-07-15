@@ -3,6 +3,7 @@ pub mod config;
 pub mod db;
 pub mod keychain;
 pub mod notify;
+pub mod plugins;
 pub mod steam;
 
 // Populated by later modules as their owning features land:

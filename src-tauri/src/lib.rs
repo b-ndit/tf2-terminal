@@ -72,6 +72,11 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::trade_history::set_trade_notes,
             commands::search::search_items,
             commands::simulator::simulate_trade,
+            commands::plugins::install_plugin,
+            commands::plugins::list_plugins,
+            commands::plugins::set_plugin_enabled,
+            commands::plugins::uninstall_plugin,
+            commands::plugins::get_plugin_panel_path,
         ])
         .events(collect_events![
             commands::inventory::InventoryChanged,
@@ -116,12 +121,23 @@ pub fn run() {
                 handle.clone(),
                 state.db.clone(),
                 state.market_data.clone(),
+                state.plugin_runtime.clone(),
             );
             services::alert_service::spawn_daily_rollup_check(
-                handle,
+                handle.clone(),
                 state.db.clone(),
+                state.plugin_runtime.clone(),
                 HIST_ROLLUP_CHECK_INTERVAL,
             );
+
+            // Module 14: plugin panels are static HTML served from each
+            // plugin's own install directory through Tauri's asset
+            // protocol — registered here (not as a static tauri.conf.json
+            // scope) since the exact path depends on `AppPaths`, resolved
+            // at runtime, not config-parse time.
+            handle
+                .asset_protocol_scope()
+                .allow_directory(state.paths.plugins_dir(), true)?;
 
             Ok(())
         })

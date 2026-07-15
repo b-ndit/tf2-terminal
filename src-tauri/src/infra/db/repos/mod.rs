@@ -6,6 +6,7 @@ pub mod item_meta_repo;
 pub mod items_repo;
 pub mod kv_cache_repo;
 pub mod market_listings_repo;
+pub mod plugins_repo;
 pub mod portfolio_repo;
 pub mod price_history_repo;
 pub mod tags_repo;
