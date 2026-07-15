@@ -70,6 +70,8 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::trade_history::list_trades,
             commands::trade_history::set_trade_rating,
             commands::trade_history::set_trade_notes,
+            commands::search::search_items,
+            commands::simulator::simulate_trade,
         ])
         .events(collect_events![
             commands::inventory::InventoryChanged,

@@ -33,6 +33,37 @@ impl ItemRow {
     }
 }
 
+/// Faceted search filters — the same facets `domain::classified_url`
+/// already models from backpack.tf's own URL convention (Module 13).
+/// `is_empty` (all `None`) means "no filter specified"; `search` treats
+/// that as "return nothing" rather than dumping the whole catalog.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ItemSearchFilters<'a> {
+    pub name: Option<&'a str>,
+    pub quality: Option<u8>,
+    pub killstreak_tier: Option<u8>,
+    pub australium: Option<bool>,
+    pub craftable: Option<bool>,
+    pub has_effect: Option<bool>,
+}
+
+impl ItemSearchFilters<'_> {
+    fn is_empty(&self) -> bool {
+        self.name.is_none()
+            && self.quality.is_none()
+            && self.killstreak_tier.is_none()
+            && self.australium.is_none()
+            && self.craftable.is_none()
+            && self.has_effect.is_none()
+    }
+}
+
+/// Bounds a search-as-you-type box's result set — search returns catalog
+/// data only (no live pricing), so this stays cheap even for a broad
+/// query; a specific item gets valued once, when it's actually added to a
+/// simulator bucket (Module 13).
+const SEARCH_RESULT_LIMIT: i64 = 50;
+
 pub struct ItemsRepo;
 
 impl ItemsRepo {
@@ -133,6 +164,75 @@ impl ItemsRepo {
                 .fetch_optional(pool)
                 .await?;
         Ok(name)
+    }
+
+    /// Faceted catalog search (Module 13) — powers the Simulator's item
+    /// picker. Returns nothing (rather than the whole catalog) if
+    /// `filters` is entirely unset; otherwise every set facet is AND'd
+    /// together, capped at `SEARCH_RESULT_LIMIT`.
+    pub async fn search(
+        pool: &SqlitePool,
+        filters: &ItemSearchFilters<'_>,
+    ) -> AppResult<Vec<ItemRow>> {
+        if filters.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut clauses: Vec<&str> = Vec::new();
+        if filters.name.is_some() {
+            clauses.push("name LIKE ?");
+        }
+        if filters.quality.is_some() {
+            clauses.push("quality = ?");
+        }
+        if filters.killstreak_tier.is_some() {
+            clauses.push("killstreak_tier = ?");
+        }
+        if filters.australium.is_some() {
+            clauses.push("australium = ?");
+        }
+        if filters.craftable.is_some() {
+            clauses.push("craftable = ?");
+        }
+        if let Some(has_effect) = filters.has_effect {
+            clauses.push(if has_effect {
+                "effect_id IS NOT NULL"
+            } else {
+                "effect_id IS NULL"
+            });
+        }
+
+        // Safe: the only dynamic parts are the clause list (fixed literals
+        // chosen from the match arms above, never interpolated user data)
+        // and the constant LIMIT — actual filter values are always bound
+        // below, never spliced into the SQL text.
+        let sql = format!(
+            "SELECT * FROM items WHERE {} ORDER BY name LIMIT {SEARCH_RESULT_LIMIT}",
+            clauses.join(" AND ")
+        );
+        let mut query = sqlx::query_as::<_, ItemRow>(sqlx::AssertSqlSafe(sql));
+
+        if let Some(name) = filters.name {
+            // No escaping of the user's own `%`/`_` wildcards — a minor,
+            // acceptable rough edge for a search box, not a correctness or
+            // security concern (the value is still a bound parameter).
+            query = query.bind(format!("%{name}%"));
+        }
+        if let Some(quality) = filters.quality {
+            query = query.bind(quality as i64);
+        }
+        if let Some(killstreak_tier) = filters.killstreak_tier {
+            query = query.bind(killstreak_tier as i64);
+        }
+        if let Some(australium) = filters.australium {
+            query = query.bind(australium);
+        }
+        if let Some(craftable) = filters.craftable {
+            query = query.bind(craftable);
+        }
+
+        let rows = query.fetch_all(pool).await?;
+        Ok(rows)
     }
 }
 
@@ -354,6 +454,189 @@ mod tests {
             .await
             .unwrap();
         assert!(defindexes.is_empty());
+        pool.close().await;
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn search_with_no_filters_returns_nothing() {
+        let (pool, dir) = test_pool().await;
+        ItemsRepo::get_or_create(&pool, &plain_key(45), "Scattergun")
+            .await
+            .unwrap();
+
+        let results = ItemsRepo::search(&pool, &ItemSearchFilters::default())
+            .await
+            .unwrap();
+        assert!(results.is_empty());
+
+        pool.close().await;
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn search_by_name_substring_is_case_insensitive() {
+        let (pool, dir) = test_pool().await;
+        ItemsRepo::get_or_create(&pool, &plain_key(45), "Scattergun")
+            .await
+            .unwrap();
+        ItemsRepo::get_or_create(&pool, &plain_key(46), "Pistol")
+            .await
+            .unwrap();
+
+        let results = ItemsRepo::search(
+            &pool,
+            &ItemSearchFilters {
+                name: Some("scatter"),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].name, "Scattergun");
+
+        pool.close().await;
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn search_by_quality_filters_exactly() {
+        let (pool, dir) = test_pool().await;
+        ItemsRepo::get_or_create(&pool, &plain_key(45), "Scattergun")
+            .await
+            .unwrap();
+        ItemsRepo::get_or_create(
+            &pool,
+            &ItemKey {
+                quality: Quality::Strange,
+                ..plain_key(45)
+            },
+            "Scattergun",
+        )
+        .await
+        .unwrap();
+
+        let results = ItemsRepo::search(
+            &pool,
+            &ItemSearchFilters {
+                quality: Some(Quality::Strange as u8),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].quality, Quality::Strange as u8 as i64);
+
+        pool.close().await;
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn search_by_has_effect_distinguishes_unusuals() {
+        let (pool, dir) = test_pool().await;
+        ItemsRepo::get_or_create(&pool, &plain_key(45), "Scattergun")
+            .await
+            .unwrap();
+        ItemsRepo::get_or_create(
+            &pool,
+            &ItemKey {
+                quality: Quality::Unusual,
+                effect_id: Some(13),
+                ..plain_key(30469)
+            },
+            "Team Captain",
+        )
+        .await
+        .unwrap();
+
+        let unusuals = ItemsRepo::search(
+            &pool,
+            &ItemSearchFilters {
+                has_effect: Some(true),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(unusuals.len(), 1);
+        assert_eq!(unusuals[0].name, "Team Captain");
+
+        let non_unusuals = ItemsRepo::search(
+            &pool,
+            &ItemSearchFilters {
+                has_effect: Some(false),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(non_unusuals.len(), 1);
+        assert_eq!(non_unusuals[0].name, "Scattergun");
+
+        pool.close().await;
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn search_combines_multiple_filters_with_and() {
+        let (pool, dir) = test_pool().await;
+        ItemsRepo::get_or_create(&pool, &plain_key(45), "Scattergun")
+            .await
+            .unwrap();
+        ItemsRepo::get_or_create(
+            &pool,
+            &ItemKey {
+                australium: true,
+                ..plain_key(45)
+            },
+            "Scattergun",
+        )
+        .await
+        .unwrap();
+
+        let results = ItemsRepo::search(
+            &pool,
+            &ItemSearchFilters {
+                name: Some("Scattergun"),
+                australium: Some(true),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert!(results[0].australium);
+
+        pool.close().await;
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn search_respects_the_result_limit() {
+        let (pool, dir) = test_pool().await;
+        for defindex in 0..60u32 {
+            ItemsRepo::get_or_create(&pool, &plain_key(defindex), "Duplicate Name")
+                .await
+                .unwrap();
+        }
+
+        let results = ItemsRepo::search(
+            &pool,
+            &ItemSearchFilters {
+                name: Some("Duplicate"),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(results.len(), SEARCH_RESULT_LIMIT as usize);
+
         pool.close().await;
         std::fs::remove_dir_all(&dir).ok();
     }

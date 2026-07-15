@@ -109,6 +109,19 @@ export const commands = {
 	listTrades: (limit: number) => typedError<TradeLedgerView[], AppError>(__TAURI_INVOKE("list_trades", { limit })),
 	setTradeRating: (tradeOfferId: string, rating: number | null) => typedError<null, AppError>(__TAURI_INVOKE("set_trade_rating", { tradeOfferId, rating })),
 	setTradeNotes: (tradeOfferId: string, notes: string | null) => typedError<null, AppError>(__TAURI_INVOKE("set_trade_notes", { tradeOfferId, notes })),
+	/**
+	 *  Faceted catalog search (Module 13) — powers the Simulator's item
+	 *  picker. Returns nothing if every filter is left unset, rather than
+	 *  dumping the whole catalog (`ItemsRepo::search`'s own guard).
+	 */
+	searchItems: (name: string | null, quality: number | null, killstreakTier: number | null, australium: boolean | null, craftable: boolean | null, hasEffect: boolean | null) => typedError<ItemSearchResult[], AppError>(__TAURI_INVOKE("search_items", { name, quality, killstreakTier, australium, craftable, hasEffect })),
+	/**
+	 *  Values a hypothetical trade the user assembled by hand (Module 13's
+	 *  drag-drop builder) — same valuation/rating engine as Module 9's real
+	 *  trade offers, see `services::simulator_service` for how "give"
+	 *  (owned, by asset id) vs "receive" (hypothetical, by `ItemKey`) differ.
+	 */
+	simulateTrade: (givenAssetIds: string[], receivedItemKeys: ItemKeyInput[]) => typedError<SimulatedTradeView, AppError>(__TAURI_INVOKE("simulate_trade", { givenAssetIds, receivedItemKeys })),
 };
 
 /** Events */
@@ -295,6 +308,20 @@ export type ItemAnalytics = {
 	trend_d365_pct: number | null,
 };
 
+/**
+ *  Wire-safe mirror of `domain::item::ItemKey` (Specta-safe primitives
+ *  only), converted via `TryFrom`.
+ */
+export type ItemKeyInput = {
+	defindex: number,
+	quality: number,
+	effect_id: number | null,
+	killstreak_tier: number,
+	australium: boolean,
+	festivized: boolean,
+	craftable: boolean,
+};
+
 export type ItemMeta = {
 	folder: string | null,
 	pinned: boolean,
@@ -312,6 +339,18 @@ export type ItemMoverView = {
 	 */
 	current_value_ref: number | null,
 	change_pct: number | null,
+};
+
+export type ItemSearchResult = {
+	item_id: number,
+	defindex: number,
+	name: string,
+	quality: number,
+	effect_id: number | null,
+	killstreak_tier: number,
+	australium: boolean,
+	festivized: boolean,
+	craftable: boolean,
 };
 
 export type LedgerItemView = {
@@ -420,6 +459,24 @@ export type SchemaSyncSummary = {
 	 *  (Strange, Unusual+effect, ...) beyond the schema's base entries.
 	 */
 	items_in_db: number,
+};
+
+/**
+ *  Mirrors `trade_analysis_engine::AnalyzedTradeOffer` minus the
+ *  Steam-specific fields (trade offer id, partner, message, time) — there
+ *  is no real offer behind a simulated trade.
+ */
+export type SimulatedTradeView = {
+	given_items: TradeItemView[],
+	received_items: TradeItemView[],
+	stars: number,
+	given_total_ref: number | null,
+	received_total_ref: number | null,
+	net_ref: number | null,
+	roi_pct: number | null,
+	risk: string,
+	explanation: string[],
+	counteroffer_additional_ref: number | null,
 };
 
 export type Tag = {

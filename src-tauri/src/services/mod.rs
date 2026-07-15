@@ -9,5 +9,6 @@ pub mod market_analyzer_service;
 pub mod market_data_service;
 pub mod portfolio_service;
 pub mod schema_service;
+pub mod simulator_service;
 pub mod trade_analysis_engine;
 pub mod trade_history_service;

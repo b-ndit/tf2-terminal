@@ -6,6 +6,8 @@ pub mod market;
 pub mod organization;
 pub mod portfolio;
 pub mod schema;
+pub mod search;
 pub mod settings;
+pub mod simulator;
 pub mod trade_history;
 pub mod trades;
