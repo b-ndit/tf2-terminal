@@ -1,18 +1,10 @@
 import { useEffect, useState } from "react";
 import { useMarketAnalyzerStore } from "../../stores/marketAnalyzerStore";
 import { qualityColor, qualityName } from "../backpack/quality";
-import { useAnalyzeClassifiedUrl } from "./api";
+import { useAnalyzeClassifiedUrl, useKeyRate } from "./api";
 import type { ItemAnalytics } from "./api";
+import { formatCurrency } from "./currency";
 import { PriceChart } from "./PriceChart";
-
-// Specta exports Rust's `f64` as `number | null` (accounting for
-// NaN/Infinity, which have no JSON representation) even for fields that
-// are never actually `Option` on the Rust side. These values are
-// effectively always present at runtime; null-coalesce for display.
-function formatRef(value: number | null): string {
-  if (value === null) return "—";
-  return `${value.toFixed(2)} ref`;
-}
 
 function formatScore(value: number | null): string {
   return (value ?? 0).toFixed(0);
@@ -28,6 +20,7 @@ export function MarketAnalyzer() {
   const [url, setUrl] = useState("");
   const [analyzedUrl, setAnalyzedUrl] = useState<string | null>(null);
   const analyze = useAnalyzeClassifiedUrl();
+  const keyRate = useKeyRate();
   const pendingUrl = useMarketAnalyzerStore((s) => s.pendingUrl);
   const consumePendingUrl = useMarketAnalyzerStore((s) => s.consumePendingUrl);
 
@@ -79,7 +72,7 @@ export function MarketAnalyzer() {
         </p>
       )}
 
-      {analyze.data && <AnalyticsResult analytics={analyze.data} url={analyzedUrl} />}
+      {analyze.data && <AnalyticsResult analytics={analyze.data} url={analyzedUrl} keyRateRef={keyRate.data ?? null} />}
 
       {!analyze.data && !analyze.isError && (
         <p className="text-sm text-fg-subtle">
@@ -91,7 +84,15 @@ export function MarketAnalyzer() {
   );
 }
 
-function AnalyticsResult({ analytics, url }: { analytics: ItemAnalytics; url: string | null }) {
+function AnalyticsResult({
+  analytics,
+  url,
+  keyRateRef,
+}: {
+  analytics: ItemAnalytics;
+  url: string | null;
+  keyRateRef: number | null;
+}) {
   const color = qualityColor(analytics.quality);
   const sortedBuys = [...analytics.buy_listings].sort((a, b) => (b.price_ref ?? 0) - (a.price_ref ?? 0));
   const sortedSells = [...analytics.sell_listings].sort((a, b) => (a.price_ref ?? 0) - (b.price_ref ?? 0));
@@ -104,31 +105,33 @@ function AnalyticsResult({ analytics, url }: { analytics: ItemAnalytics; url: st
         {analytics.effect_id !== null && <span className="ml-2 text-sm text-fg-muted">(Effect #{analytics.effect_id})</span>}
       </h2>
 
-      <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
+      <div
+        className="mt-3 grid gap-2"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(92px, 1fr))" }}
+      >
         <Stat label="Spread" value={analytics.spread_pct !== null ? `${analytics.spread_pct.toFixed(1)}%` : "—"} />
-        <Stat label="Spread (ref)" value={formatRef(analytics.spread_abs_ref)} />
+        <Stat label="Spread ref" value={formatCurrency(analytics.spread_abs_ref, keyRateRef)} />
         <Stat label="Liquidity" value={formatScore(analytics.liquidity_score)} />
         <Stat label="Demand" value={formatScore(analytics.demand_score)} />
-        <Stat label="Est. Sale" value={formatRef(analytics.estimated_sale_price_ref)} />
-        <Stat label="Quicksell" value={formatRef(analytics.estimated_quicksell_ref)} />
+        <Stat label="Est. Sale" value={formatCurrency(analytics.estimated_sale_price_ref, keyRateRef)} />
+        <Stat label="Quicksell" value={formatCurrency(analytics.estimated_quicksell_ref, keyRateRef)} />
+        {hasTrend && (
+          <>
+            <Stat label="MA7" value={formatCurrency(analytics.trend_ma7_ref, keyRateRef)} />
+            <Stat label="MA30" value={formatCurrency(analytics.trend_ma30_ref, keyRateRef)} />
+            <Stat label="Volatility" value={analytics.trend_volatility_pct !== null ? `${analytics.trend_volatility_pct.toFixed(1)}%` : "—"} />
+            <Stat label="1D" value={formatPct(analytics.trend_d1_pct)} />
+            <Stat label="7D" value={formatPct(analytics.trend_d7_pct)} />
+            <Stat label="30D" value={formatPct(analytics.trend_d30_pct)} />
+          </>
+        )}
       </div>
-
-      {hasTrend && (
-        <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
-          <Stat label="MA7" value={formatRef(analytics.trend_ma7_ref)} />
-          <Stat label="MA30" value={formatRef(analytics.trend_ma30_ref)} />
-          <Stat label="Volatility" value={analytics.trend_volatility_pct !== null ? `${analytics.trend_volatility_pct.toFixed(1)}%` : "—"} />
-          <Stat label="1D" value={formatPct(analytics.trend_d1_pct)} />
-          <Stat label="7D" value={formatPct(analytics.trend_d7_pct)} />
-          <Stat label="30D" value={formatPct(analytics.trend_d30_pct)} />
-        </div>
-      )}
 
       <PriceChart url={url} />
 
-      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-        <ListingTable title={`Buyers (${sortedBuys.length})`} rows={sortedBuys} />
-        <ListingTable title={`Sellers (${sortedSells.length})`} rows={sortedSells} />
+      <div className="mt-5 flex flex-col gap-4">
+        <ListingTable title={`Buyers (${sortedBuys.length})`} rows={sortedBuys} keyRateRef={keyRateRef} />
+        <ListingTable title={`Sellers (${sortedSells.length})`} rows={sortedSells} keyRateRef={keyRateRef} />
       </div>
     </div>
   );
@@ -136,14 +139,22 @@ function AnalyticsResult({ analytics, url }: { analytics: ItemAnalytics; url: st
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded border border-charcoal-border bg-charcoal-raised px-3 py-2">
+    <div className="rounded border border-charcoal-border bg-charcoal-raised px-2 py-1.5">
       <div className="text-xs text-fg-muted">{label}</div>
-      <div className="text-sm font-semibold">{value}</div>
+      <div className="text-sm font-semibold whitespace-nowrap">{value}</div>
     </div>
   );
 }
 
-function ListingTable({ title, rows }: { title: string; rows: ItemAnalytics["buy_listings"] }) {
+function ListingTable({
+  title,
+  rows,
+  keyRateRef,
+}: {
+  title: string;
+  rows: ItemAnalytics["buy_listings"];
+  keyRateRef: number | null;
+}) {
   return (
     <div className="rounded border border-charcoal-border">
       <div className="border-b border-charcoal-border bg-charcoal-raised px-3 py-1.5 text-sm font-medium">{title}</div>
@@ -155,8 +166,12 @@ function ListingTable({ title, rows }: { title: string; rows: ItemAnalytics["buy
             {rows.map((row) => (
               <tr key={row.listing_id} className="border-b border-charcoal-border last:border-0">
                 <td className="px-3 py-1.5 text-fg-muted">{row.steam_name ?? row.steam_id}</td>
-                <td className="px-3 py-1.5 text-right font-medium">{(row.price_ref ?? 0).toFixed(2)} ref</td>
-                <td className="px-3 py-1.5 text-right text-xs text-fg-subtle">{(row.age_hours ?? 0).toFixed(1)}h ago</td>
+                <td className="px-3 py-1.5 text-right font-medium whitespace-nowrap">
+                  {formatCurrency(row.price_ref, keyRateRef)}
+                </td>
+                <td className="px-3 py-1.5 text-right text-xs whitespace-nowrap text-fg-subtle">
+                  {(row.age_hours ?? 0).toFixed(1)}h ago
+                </td>
               </tr>
             ))}
           </tbody>

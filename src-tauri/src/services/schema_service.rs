@@ -38,11 +38,23 @@ pub struct SchemaSyncSummary {
 /// `items` table with each base item at its native quality. Permutations
 /// (Strange, Unusual+effect, Australium, ...) get added later as they're
 /// actually encountered in inventories/listings.
+///
+/// **Deviation (found live, Module 15):** the cache-hit path used to only
+/// run `backfill_unknown_names` (a cross-row copy) rather than re-running
+/// the full seed loop below — meaning if a *specific* row's own name
+/// update was ever lost (e.g. to a lost-update race against a concurrent
+/// `inventory_service::sync` write reading a pre-commit snapshot and
+/// writing its "Unknown Item" fallback back afterward — verified live),
+/// there was no row anywhere with the real name left for backfill to copy
+/// from, and repeated syncs could never converge. The seed loop now always
+/// re-runs (whether the schema data came from network or cache), making
+/// every sync fully self-healing regardless of how a row got stuck.
 pub async fn sync(state: &AppState) -> AppResult<SchemaSyncSummary> {
     if let Some(cached) = KvCacheRepo::get(&state.db, CACHE_KEY_ITEMS).await? {
         let items: Vec<SchemaItem> = serde_json::from_slice(&cached)
             .map_err(|e| AppError::Internal(format!("corrupt cached schema items: {e}")))?;
         let overview = load_cached_overview(state).await?;
+        seed_items(state, &items).await?;
         let unknown_names_fixed = ItemsRepo::backfill_unknown_names(&state.db).await? as u32;
         return Ok(SchemaSyncSummary {
             items_synced: items.len() as u32,
@@ -69,7 +81,21 @@ pub async fn sync(state: &AppState) -> AppResult<SchemaSyncSummary> {
     KvCacheRepo::set(&state.db, CACHE_KEY_OVERVIEW, &overview_json, SCHEMA_TTL).await?;
     KvCacheRepo::set(&state.db, CACHE_KEY_ITEMS, &items_json, SCHEMA_TTL).await?;
 
-    for item in &items {
+    seed_items(state, &items).await?;
+    let unknown_names_fixed = ItemsRepo::backfill_unknown_names(&state.db).await? as u32;
+
+    Ok(SchemaSyncSummary {
+        items_synced: items.len() as u32,
+        particles_cached: overview.particles.len() as u32,
+        qualities_cached: overview.quality_names.len() as u32,
+        from_cache: false,
+        items_in_db: ItemsRepo::count(&state.db).await? as u32,
+        unknown_names_fixed,
+    })
+}
+
+async fn seed_items(state: &AppState, items: &[SchemaItem]) -> AppResult<()> {
+    for item in items {
         let quality = Quality::try_from(item.item_quality).unwrap_or(Quality::Unique);
         let key = ItemKey {
             defindex: item.defindex,
@@ -86,17 +112,7 @@ pub async fn sync(state: &AppState) -> AppResult<SchemaSyncSummary> {
         }
         tracing::debug!(sku = %key.to_sku(), item_id = id, "synced schema item");
     }
-
-    let unknown_names_fixed = ItemsRepo::backfill_unknown_names(&state.db).await? as u32;
-
-    Ok(SchemaSyncSummary {
-        items_synced: items.len() as u32,
-        particles_cached: overview.particles.len() as u32,
-        qualities_cached: overview.quality_names.len() as u32,
-        from_cache: false,
-        items_in_db: ItemsRepo::count(&state.db).await? as u32,
-        unknown_names_fixed,
-    })
+    Ok(())
 }
 
 async fn load_cached_overview(state: &AppState) -> AppResult<Option<SchemaOverview>> {

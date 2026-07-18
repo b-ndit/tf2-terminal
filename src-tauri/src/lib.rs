@@ -51,6 +51,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::market::get_recent_listings,
             commands::market::analyze_classified_url,
             commands::market::get_price_history,
+            commands::market::get_key_rate,
             commands::trades::get_active_trades,
             commands::alerts::create_alert_rule,
             commands::alerts::list_alert_rules,

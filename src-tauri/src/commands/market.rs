@@ -56,3 +56,16 @@ pub async fn get_price_history(
 ) -> AppResult<Vec<PriceBar>> {
     market_analyzer_service::get_price_history(&state.db, &url).await
 }
+
+/// Current key↔ref rate, for displaying prices as "N keys, M.MM ref"
+/// (Module 15, requested live) instead of a flat ref number — `0.0` if
+/// the Key has never been priced yet.
+#[tauri::command]
+#[specta::specta]
+pub async fn get_key_rate(state: State<'_, AppState>) -> AppResult<f64> {
+    let now_ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock is before the unix epoch")
+        .as_secs() as i64;
+    market_analyzer_service::get_key_rate_ref(&state.db, now_ts).await
+}

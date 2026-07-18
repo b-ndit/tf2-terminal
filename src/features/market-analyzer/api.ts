@@ -29,4 +29,15 @@ export function usePriceHistory(url: string | null) {
   });
 }
 
+// The rate drifts slowly (over days, not minutes) — a longer staleTime
+// avoids an extra round trip on every render without ever showing a
+// meaningfully stale rate.
+export function useKeyRate() {
+  return useQuery({
+    queryKey: ["key-rate"],
+    queryFn: () => unwrap(commands.getKeyRate()),
+    staleTime: 5 * 60_000,
+  });
+}
+
 export type { ItemAnalytics, PriceBar };

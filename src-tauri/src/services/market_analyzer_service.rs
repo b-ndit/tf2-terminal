@@ -11,8 +11,14 @@ use crate::error::{AppError, AppResult};
 use crate::infra::db::repos::items_repo::ItemsRepo;
 use crate::infra::db::repos::market_listings_repo::{MarketListingRow, MarketListingsRepo};
 use crate::infra::db::repos::price_history_repo::PriceDailyRepo;
+use crate::services::item_valuation::value_item_key;
 
 const DAY_SECONDS: i64 = 86_400;
+/// Valve's schema defindex for the Mann Co. Supply Crate Key — stable
+/// since ~2011. Matches `portfolio_service`'s own `DEFINDEX_KEY` constant
+/// (each file that needs one defines its own, per that module's existing
+/// convention — not worth a shared constant for a single `u32`).
+const DEFINDEX_KEY: u32 = 5021;
 
 #[derive(Debug, Clone, Serialize, Type)]
 pub struct ListingRow {
@@ -276,6 +282,33 @@ pub async fn get_price_history(pool: &SqlitePool, url: &str) -> AppResult<Vec<Pr
         })
         .collect();
     Ok(bars)
+}
+
+/// The current key↔ref rate, for the frontend to display prices as
+/// "N keys, M.MM ref" the way backpack.tf's own classifieds do (Module
+/// 15, requested live) rather than a flat ref number. Reuses the Key's
+/// own market valuation — same "value the Key like any other item" trick
+/// `portfolio_service::snapshot_now` already relies on — so this stays
+/// consistent with every other price shown elsewhere in the app rather
+/// than re-deriving a rate from a second source. `0.0` (rather than an
+/// error) if the Key has never been priced yet (e.g. schema/market data
+/// not synced), so the frontend can fall back to a plain ref display.
+pub async fn get_key_rate_ref(pool: &SqlitePool, now_ts: i64) -> AppResult<f64> {
+    let key_item_key = ItemKey {
+        defindex: DEFINDEX_KEY,
+        quality: Quality::Unique,
+        effect_id: None,
+        killstreak_tier: KillstreakTier::None,
+        australium: false,
+        festivized: false,
+        craftable: true,
+    };
+    let valuation =
+        value_item_key(pool, &key_item_key, "Mann Co. Supply Crate Key", now_ts).await?;
+    Ok(valuation
+        .estimated_ref
+        .or(valuation.quicksell_ref)
+        .unwrap_or(0.0))
 }
 
 #[cfg(test)]

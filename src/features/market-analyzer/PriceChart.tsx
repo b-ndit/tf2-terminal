@@ -27,6 +27,19 @@ function Chart({ bars }: { bars: NonNullable<ReturnType<typeof usePriceHistory>[
       rightPriceScale: { borderColor: "#2a2b31" },
     });
 
+    // `autoSize`'s ResizeObserver fires on the *next* layout pass, not
+    // synchronously on creation — opening this panel via a Dockview
+    // `addPanel` (rather than it already being laid out) can leave the
+    // container mid-transition at creation time. One explicit resize
+    // against the actually-measured box, after paint, makes the first
+    // render correct regardless of whether that observer fires promptly.
+    requestAnimationFrame(() => {
+      const rect = container.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        chart.resize(rect.width, rect.height);
+      }
+    });
+
     const series = chart.addSeries(CandlestickSeries, {
       upColor: "#26a69a",
       downColor: "#ef5350",

@@ -56,6 +56,12 @@ export const commands = {
 	 */
 	getPriceHistory: (url: string) => typedError<PriceBar[], AppError>(__TAURI_INVOKE("get_price_history", { url })),
 	/**
+	 *  Current key↔ref rate, for displaying prices as "N keys, M.MM ref"
+	 *  (Module 15, requested live) instead of a flat ref number — `0.0` if
+	 *  the Key has never been priced yet.
+	 */
+	getKeyRate: () => typedError<number | null, AppError>(__TAURI_INVOKE("get_key_rate")),
+	/**
 	 *  Fetches every active Steam trade offer the user has received and rates
 	 *  each one (spread/liquidity/demand-based ★ rating, explanation,
 	 *  counteroffer suggestion). Pull-based — the frontend polls this on an

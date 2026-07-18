@@ -351,3 +351,39 @@ async fn analyze_handles_no_listings_gracefully() {
     pool.close().await;
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[tokio::test]
+async fn get_key_rate_ref_resolves_from_the_keys_own_listings() {
+    let (pool, dir) = test_pool().await;
+    let now = 1_000_000_000;
+
+    seed_item(&pool, 5021, Quality::Unique, "Mann Co. Supply Crate Key").await;
+    seed_listing(
+        &pool,
+        SeedListing {
+            listing_id: "sell1",
+            defindex: 5021,
+            quality: 6,
+            effect_id: None,
+            intent: "sell",
+            price_ref: 63.5,
+            updated_at: now - 3600,
+        },
+    )
+    .await;
+
+    let rate = get_key_rate_ref(&pool, now).await.unwrap();
+    assert!(rate > 0.0, "expected a positive key rate, got {rate}");
+
+    pool.close().await;
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[tokio::test]
+async fn get_key_rate_ref_is_zero_without_any_key_data() {
+    let (pool, dir) = test_pool().await;
+    let rate = get_key_rate_ref(&pool, 1_000_000_000).await.unwrap();
+    assert_eq!(rate, 0.0);
+    pool.close().await;
+    std::fs::remove_dir_all(&dir).ok();
+}

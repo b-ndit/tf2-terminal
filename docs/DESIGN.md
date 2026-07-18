@@ -56,6 +56,8 @@ This is the part most TF2 tools get wrong, so it's settled before architecture.
 ### Currency model
 All values normalized internally to refined metal: store prices as `(keys: f64, metal_refined: f64)` plus a computed `value_in_ref` using the live key↔ref rate (itself tracked as a time series). USD display derived from the key's community price.
 
+**Addition (Module 15, requested live):** Market Analyzer displays every ref amount as "N keys, M.MM ref" — matching backpack.tf's own classifieds convention — rather than a flat ref number, via a new `get_key_rate` command (`market_analyzer_service::get_key_rate_ref`) that values the Key itself the same way `portfolio_service::snapshot_now` already does (reusing `item_valuation::value_item_key` rather than a second rate source), plus a pure `formatCurrency` helper on the frontend mirroring `domain::currency::Currency::from_total_ref`'s floor/remainder split exactly. Also cleaned up the stats grid layout while in there — a fixed `grid-cols-6` had been truncating labels/values illegibly in Dockview's narrower panel widths (verified live); it's now an `auto-fit`/`minmax` grid that reflows instead of squeezing, and the buyer/seller tables now stack full-width rather than competing for half a narrow panel each.
+
 ---
 
 ## 3. Layered Architecture
