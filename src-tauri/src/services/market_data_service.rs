@@ -143,6 +143,19 @@ impl MarketDataService {
         tokio::spawn(async move {
             let mut seen = SeenListings::new(SEEN_LISTINGS_CAP);
             while let Some(raw) = raw_rx.recv().await {
+                // A spelled listing's price reflects the spell, not the
+                // plain item — see `WsItem::has_spells`'s doc comment.
+                // Dropped before an id ever enters `seen`/`market_listings`
+                // at all, so no half-tracked state to reconcile later.
+                let has_spells = match &raw {
+                    RawListingEvent::Upserted(payload) | RawListingEvent::Deleted(payload) => {
+                        payload.item.has_spells()
+                    }
+                };
+                if has_spells {
+                    continue;
+                }
+
                 let event = match raw {
                     RawListingEvent::Upserted(payload) => {
                         let kind = if seen.observe(&payload.id) {

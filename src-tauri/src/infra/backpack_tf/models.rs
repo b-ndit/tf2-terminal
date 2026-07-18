@@ -151,9 +151,34 @@ pub(crate) struct WsItem {
     pub festivized: Option<bool>,
     #[serde(default)]
     pub craftable: Option<bool>,
+    /// Halloween Spells (e.g. "Exorcism", "Pumpkin Bombs") — a real,
+    /// structured field on the live payload (verified live: a "BUYING
+    /// SPELLED... LESS FOR NON-SPELLED" listing carried
+    /// `"spells":[{"name":"Exorcism",...}]`), not something we need to
+    /// text-match `details` for. Spells aren't a dimension of
+    /// `domain::item::ItemKey` (Valve's own schema has no defindex/quality
+    /// distinction for them either — they're a description-only attribute
+    /// on the exact asset), so a spelled listing's price has no home in
+    /// our per-SKU aggregation; `has_spells` is used to drop these
+    /// entirely rather than silently mixing a spell premium into the
+    /// plain item's buy/sell data (Module 15, found live: this was
+    /// skewing Flip Finder's numbers for e.g. a 57-key spelled-only offer
+    /// on an otherwise ~5-key item).
+    #[serde(default)]
+    pub spells: Vec<WsSpell>,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct WsSpell {
+    #[allow(dead_code)] // not surfaced anywhere yet, kept for future use/debugging
+    pub name: String,
 }
 
 impl WsItem {
+    pub(crate) fn has_spells(&self) -> bool {
+        !self.spells.is_empty()
+    }
+
     /// Resolves the exact `ItemKey` (matching Module 2's full domain
     /// model) — needed by `HistoryRecorder` so price history isn't
     /// contaminated by mixing e.g. a Strange Australium weapon's prices
@@ -193,6 +218,64 @@ mod tests {
     use super::*;
 
     #[test]
+    fn has_spells_is_false_when_the_field_is_absent() {
+        let item = WsItem {
+            defindex: 45,
+            quality: WsQuality { id: 6 },
+            particle: None,
+            killstreak_tier: None,
+            australium: None,
+            festivized: None,
+            craftable: None,
+            spells: Vec::new(),
+        };
+        assert!(!item.has_spells());
+    }
+
+    #[test]
+    fn has_spells_is_true_when_spells_are_present() {
+        let item = WsItem {
+            defindex: 132,
+            quality: WsQuality { id: 11 },
+            particle: None,
+            killstreak_tier: Some(1),
+            australium: Some(true),
+            festivized: None,
+            craftable: Some(true),
+            spells: vec![WsSpell {
+                name: "Exorcism".to_string(),
+            }],
+        };
+        assert!(item.has_spells());
+    }
+
+    #[test]
+    fn parses_real_spelled_item_payload() {
+        // Real shape captured live: a "BUYING SPELLED... LESS FOR
+        // NON-SPELLED" listing for a Strange Killstreak Australium
+        // Eyelander at ~57 keys — a price that has no relationship to a
+        // non-spelled Eyelander's value (Module 15, found live).
+        let json = r##"{
+            "defindex": 132,
+            "quality": {"id": 11, "name": "Strange", "color": "#CF6A32"},
+            "killstreakTier": 1,
+            "class": ["Demoman"],
+            "spells": [{
+                "id": "weapon-SPELL: Halloween death ghosts",
+                "spellId": "SPELL: Halloween death ghosts",
+                "name": "Exorcism",
+                "type": "weapon"
+            }],
+            "slot": "melee",
+            "tradable": true,
+            "australium": true,
+            "craftable": true
+        }"##;
+        let item: WsItem = serde_json::from_str(json).unwrap();
+        assert!(item.has_spells());
+    }
+
+    #[test]
     fn item_key_defaults_when_optional_fields_absent() {
         let item = WsItem {
             defindex: 45,
@@ -202,6 +285,7 @@ mod tests {
             australium: None,
             festivized: None,
             craftable: None,
+            spells: Vec::new(),
         };
         let key = item.item_key().unwrap();
         assert_eq!(key.killstreak_tier, KillstreakTier::None);
@@ -221,6 +305,7 @@ mod tests {
             australium: None,
             festivized: None,
             craftable: None,
+            spells: Vec::new(),
         };
         let key = item.item_key().unwrap();
         assert_eq!(key.killstreak_tier, KillstreakTier::Specialized);
@@ -237,6 +322,7 @@ mod tests {
             australium: None,
             festivized: Some(true),
             craftable: Some(true),
+            spells: Vec::new(),
         };
         let key = item.item_key().unwrap();
         assert_eq!(key.killstreak_tier, KillstreakTier::Killstreak);
@@ -256,6 +342,7 @@ mod tests {
             australium: Some(true),
             festivized: None,
             craftable: Some(true),
+            spells: Vec::new(),
         };
         let key = item.item_key().unwrap();
         assert_eq!(key.killstreak_tier, KillstreakTier::Professional);
@@ -272,6 +359,7 @@ mod tests {
             australium: None,
             festivized: None,
             craftable: None,
+            spells: Vec::new(),
         };
         assert!(item.item_key().is_err());
     }
