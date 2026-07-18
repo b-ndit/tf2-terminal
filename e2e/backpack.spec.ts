@@ -33,7 +33,9 @@ test("opens a context menu on right-click with favorite/pin/tag actions", async 
   const tile = page.getByTestId("item-tile").first();
   await tile.click({ button: "right" });
   await expect(page.getByRole("button", { name: "Favorite" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Pin" })).toBeVisible();
+  // exact: true — "Sniping" (the workspace-switch button, Module 15)
+  // contains "Pin" as a substring and would otherwise match too.
+  await expect(page.getByRole("button", { name: "Pin", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /trade-bait/ })).toBeVisible();
   await page.screenshot({ path: "e2e/screenshots/context-menu.png" });
 });
