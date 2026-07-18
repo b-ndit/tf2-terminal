@@ -245,6 +245,7 @@ export type BackpackItem = {
 	marketable: boolean | null,
 	acquired_ts: number | null,
 	last_seen_ts: number | null,
+	image_url: string | null,
 	meta: ItemMeta,
 	tags: Tag[],
 };

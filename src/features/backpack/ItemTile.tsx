@@ -1,4 +1,4 @@
-import type { CSSProperties, MouseEvent } from "react";
+import { useState, type CSSProperties, type MouseEvent } from "react";
 import type { BackpackItem } from "./api";
 import { killstreakName, paintToHex, qualityColor, qualityName } from "./quality";
 import { TILE_GAP, TILE_SIZE } from "./constants";
@@ -15,6 +15,8 @@ export function ItemTile({ item, isSelected, style, onSelect, onContextMenu }: I
   const borderColor = qualityColor(item.quality);
   const hasEffect = item.effect_id !== null;
   const hasKillstreak = item.killstreak_tier > 0;
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = Boolean(item.image_url) && !imageFailed;
 
   function handleClick(e: MouseEvent) {
     onSelect(item.asset_id, e.ctrlKey || e.metaKey);
@@ -31,6 +33,13 @@ export function ItemTile({ item, isSelected, style, onSelect, onContextMenu }: I
         ...style,
         padding: TILE_GAP / 2,
       }}
+      // Elevates this cell's whole stacking context above every sibling
+      // cell on hover — react-window positions every tile with `absolute`
+      // and no z-index, so without this the tooltip below (`z-20`, scoped
+      // to *this* cell's own local stack) still rendered behind whichever
+      // neighboring tile happened to mount later in DOM order. Verified
+      // live: this is exactly the "tooltip behind the item icon" bug.
+      className="hover:z-50"
     >
       <div
         data-testid="item-tile"
@@ -83,9 +92,20 @@ export function ItemTile({ item, isSelected, style, onSelect, onContextMenu }: I
           </span>
         )}
 
-        <span className="line-clamp-3 text-[11px] leading-tight text-fg">
-          {item.meta.custom_label ?? item.name}
-        </span>
+        {showImage ? (
+          <img
+            src={item.image_url ?? undefined}
+            alt={item.meta.custom_label ?? item.name}
+            loading="lazy"
+            draggable={false}
+            className="h-11 w-11 object-contain"
+            onError={() => setImageFailed(true)}
+          />
+        ) : (
+          <span className="line-clamp-3 text-[11px] leading-tight text-fg">
+            {item.meta.custom_label ?? item.name}
+          </span>
+        )}
 
         <ItemTooltip item={item} />
       </div>

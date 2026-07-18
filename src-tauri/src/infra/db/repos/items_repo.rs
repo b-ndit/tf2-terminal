@@ -14,6 +14,7 @@ pub struct ItemRow {
     pub australium: bool,
     pub festivized: bool,
     pub craftable: bool,
+    pub image_url: Option<String>,
 }
 
 impl ItemRow {
@@ -92,6 +93,19 @@ impl ItemsRepo {
         .await?;
 
         Ok(id)
+    }
+
+    /// Sets an item's schema image URL — a separate call rather than a
+    /// `get_or_create` parameter (Module 15) because `get_or_create` has
+    /// ~20 call sites across the codebase, almost none of which have image
+    /// data on hand; only `schema_service::sync` does.
+    pub async fn set_image_url(pool: &SqlitePool, id: i64, image_url: &str) -> AppResult<()> {
+        sqlx::query("UPDATE items SET image_url = ? WHERE id = ?")
+            .bind(image_url)
+            .bind(id)
+            .execute(pool)
+            .await?;
+        Ok(())
     }
 
     /// Looks up an existing item's row id by its exact key, without
@@ -285,6 +299,32 @@ mod tests {
         let row = ItemsRepo::find_by_id(&pool, id).await.unwrap().unwrap();
         assert_eq!(row.name, "Mann Co. Supply Crate Key");
         assert_eq!(row.key().unwrap(), key);
+
+        pool.close().await;
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn set_image_url_persists_and_is_readable_back() {
+        let (pool, dir) = test_pool().await;
+
+        let key = plain_key(5021);
+        let id = ItemsRepo::get_or_create(&pool, &key, "Mann Co. Supply Crate Key")
+            .await
+            .unwrap();
+
+        let row = ItemsRepo::find_by_id(&pool, id).await.unwrap().unwrap();
+        assert_eq!(row.image_url, None);
+
+        ItemsRepo::set_image_url(&pool, id, "https://example.com/key.png")
+            .await
+            .unwrap();
+
+        let row = ItemsRepo::find_by_id(&pool, id).await.unwrap().unwrap();
+        assert_eq!(
+            row.image_url,
+            Some("https://example.com/key.png".to_string())
+        );
 
         pool.close().await;
         std::fs::remove_dir_all(&dir).ok();

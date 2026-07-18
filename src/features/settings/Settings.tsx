@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useClearSecret, useHasSecret, useSetSecret, type SecretKind } from "./api";
+import { useClearSecret, useHasSecret, useSetSecret, useSyncItemSchema, type SecretKind } from "./api";
 
 interface SecretFieldConfig {
   kind: SecretKind;
@@ -45,6 +45,36 @@ export function Settings() {
       {FIELDS.map((field) => (
         <SecretField key={field.kind} {...field} />
       ))}
+      <SchemaSyncField />
+    </div>
+  );
+}
+
+function SchemaSyncField() {
+  const sync = useSyncItemSchema();
+
+  return (
+    <div className="rounded border border-charcoal-border bg-charcoal-raised p-3">
+      <span className="font-medium">Item Schema</span>
+      <p className="mb-2 text-xs text-fg-muted">
+        Item names and icons come from Valve's schema, not your inventory sync — without this, items
+        show as "Unknown Item" with no icon. Requires the Steam Web API key above. Refreshes weekly on
+        its own; run manually to fix already-synced items right away.
+      </p>
+      <button
+        type="button"
+        disabled={sync.isPending}
+        onClick={() => sync.mutate()}
+        className="rounded bg-quality-unique px-3 py-1 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50"
+      >
+        {sync.isPending ? "Syncing…" : "Sync Item Schema"}
+      </button>
+      {sync.isSuccess && (
+        <p className="mt-2 text-xs text-quality-genuine">
+          Synced {sync.data.items_synced} items ({sync.data.items_in_db} in database).
+        </p>
+      )}
+      {sync.isError && <p className="mt-2 text-xs text-red-400">{sync.error.message}</p>}
     </div>
   );
 }

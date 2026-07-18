@@ -1,7 +1,29 @@
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 
 use crate::error::AppResult;
 use crate::infra::steam::SteamApiClient;
+
+/// Steam's Web API is inconsistent about whether large integer fields come
+/// back as JSON numbers or JSON strings (a widely-documented quirk —
+/// `tradeofferid` values are large enough to raise it) — serde doesn't
+/// coerce between the two by default, so a plain `u64` field panics with
+/// a "decoding response body" error the moment Steam happens to quote it.
+/// Accept either representation.
+fn u64_from_number_or_string<'de, D>(deserializer: D) -> Result<u64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum NumberOrString {
+        Number(u64),
+        String(String),
+    }
+    match NumberOrString::deserialize(deserializer)? {
+        NumberOrString::Number(n) => Ok(n),
+        NumberOrString::String(s) => s.parse().map_err(serde::de::Error::custom),
+    }
+}
 
 const GET_TRADE_OFFERS_URL: &str = "https://api.steampowered.com/IEconService/GetTradeOffers/v1/";
 
@@ -26,6 +48,7 @@ pub struct TradeOfferAsset {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct TradeOffer {
+    #[serde(deserialize_with = "u64_from_number_or_string")]
     pub tradeofferid: u64,
     pub accountid_other: u32,
     #[serde(default)]
@@ -134,6 +157,18 @@ impl<'a> SteamTradeOfferClient<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tradeofferid_accepts_either_a_json_number_or_a_quoted_string() {
+        let numeric = r#"{"tradeofferid": 6234567890123456789, "accountid_other": 1, "trade_offer_state": 2, "time_created": 1, "time_updated": 1}"#;
+        let stringly = r#"{"tradeofferid": "6234567890123456789", "accountid_other": 1, "trade_offer_state": 2, "time_created": 1, "time_updated": 1}"#;
+
+        let from_number: TradeOffer = serde_json::from_str(numeric).unwrap();
+        let from_string: TradeOffer = serde_json::from_str(stringly).unwrap();
+
+        assert_eq!(from_number.tradeofferid, 6234567890123456789);
+        assert_eq!(from_string.tradeofferid, 6234567890123456789);
+    }
 
     #[test]
     fn parses_envelope_with_active_and_inactive_offers() {

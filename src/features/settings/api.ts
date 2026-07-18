@@ -53,3 +53,12 @@ export function useClearSecret(kind: SecretKind) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["settings", "has", kind] }),
   });
 }
+
+/** Item names/images come from Valve's schema, not the inventory sync
+ * itself — without this, every item shows as "Unknown Item {defindex}"
+ * with no icon. */
+export function useSyncItemSchema() {
+  return useMutation({
+    mutationFn: () => unwrap(commands.syncItemSchema()),
+  });
+}

@@ -48,6 +48,7 @@ pub struct InventoryItemView {
     pub marketable: Option<bool>,
     pub acquired_ts: Option<i64>,
     pub last_seen_ts: i64,
+    pub image_url: Option<String>,
 }
 
 pub struct InventoryRepo;
@@ -185,7 +186,7 @@ impl InventoryRepo {
                 inv.asset_id, inv.item_id, it.defindex, it.name, it.quality, it.effect_id, it.killstreak_tier,
                 it.australium, it.festivized, it.craftable,
                 inv.craft_number, inv.paint_id, inv.strange_count, inv.tradable, inv.marketable,
-                inv.acquired_ts, inv.last_seen_ts
+                inv.acquired_ts, inv.last_seen_ts, it.image_url
             FROM inventory_items inv
             JOIN items it ON it.id = inv.item_id
             WHERE inv.steam_id = ?

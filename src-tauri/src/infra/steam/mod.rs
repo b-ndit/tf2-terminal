@@ -9,7 +9,12 @@ use std::sync::Arc;
 use governor::{DefaultDirectRateLimiter, Quota};
 use serde::de::DeserializeOwned;
 
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
+
+/// Longest response-body prefix logged on a decode failure — enough to see
+/// the actual shape Steam sent without dumping an unbounded body into the
+/// log file.
+const LOGGED_BODY_PREFIX: usize = 2000;
 
 /// Rate-limited HTTP client for the Steam Web API. One instance shared
 /// across all Steam infra callers (schema sync now, inventory/trade offers
@@ -34,6 +39,11 @@ impl SteamApiClient {
         }
     }
 
+    /// Fetches `text()` rather than using `reqwest`'s own `.json()` so a
+    /// decode failure can log the actual response body — `reqwest`'s error
+    /// alone gives no way to see what Steam sent that didn't match our
+    /// struct (verified live: this is what turned an opaque "error
+    /// decoding response body" report into a fixable bug).
     pub async fn get_json<T: DeserializeOwned>(
         &self,
         url: &str,
@@ -42,8 +52,12 @@ impl SteamApiClient {
         self.limiter.until_ready().await;
         let response = self.http.get(url).query(query).send().await?;
         let response = response.error_for_status()?;
-        let body = response.json::<T>().await?;
-        Ok(body)
+        let body = response.text().await?;
+        serde_json::from_str(&body).map_err(|e| {
+            let snippet: String = body.chars().take(LOGGED_BODY_PREFIX).collect();
+            tracing::error!(url, error = %e, body = %snippet, "failed to decode Steam API JSON response");
+            AppError::Network(format!("failed to decode response from {url}: {e}"))
+        })
     }
 }
 

@@ -20,6 +20,7 @@ fn sample_backpack_item() -> BackpackItem {
         marketable: Some(true),
         acquired_ts: None,
         last_seen_ts: 1_700_000_000.0,
+        image_url: None,
         meta: ItemMeta {
             folder: Some("Trade-up".to_string()),
             pinned: true,

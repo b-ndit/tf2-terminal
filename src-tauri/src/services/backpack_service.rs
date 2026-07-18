@@ -35,6 +35,7 @@ pub struct BackpackItem {
     pub marketable: Option<bool>,
     pub acquired_ts: Option<f64>,
     pub last_seen_ts: f64,
+    pub image_url: Option<String>,
     pub meta: ItemMeta,
     pub tags: Vec<Tag>,
 }
@@ -68,6 +69,7 @@ pub async fn get_backpack(state: &AppState, steam_id: SteamId64) -> AppResult<Ve
                 marketable: inv.marketable,
                 acquired_ts: inv.acquired_ts.map(|t| t as f64),
                 last_seen_ts: inv.last_seen_ts as f64,
+                image_url: inv.image_url,
                 meta,
                 tags,
             }

@@ -75,6 +75,9 @@ pub async fn sync(state: &AppState) -> AppResult<SchemaSyncSummary> {
             craftable: true,
         };
         let id = ItemsRepo::get_or_create(&state.db, &key, &item.item_name).await?;
+        if let Some(image_url) = &item.image_url {
+            ItemsRepo::set_image_url(&state.db, id, image_url).await?;
+        }
         tracing::debug!(sku = %key.to_sku(), item_id = id, "synced schema item");
     }
 
