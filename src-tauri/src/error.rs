@@ -42,8 +42,8 @@ impl From<sqlx::migrate::MigrateError> for AppError {
     }
 }
 
-impl From<keyring::Error> for AppError {
-    fn from(err: keyring::Error) -> Self {
+impl From<keyring_core::Error> for AppError {
+    fn from(err: keyring_core::Error) -> Self {
         AppError::Keychain(err.to_string())
     }
 }

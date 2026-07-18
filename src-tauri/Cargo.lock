@@ -3019,19 +3019,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "keyring"
-version = "4.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6ee8d4dae108d4177d0a0ce241f98acc1ef28e20837bdef43cff4d160cf70fe"
-dependencies = [
- "apple-native-keyring-store",
- "keyring-core",
- "linux-keyutils-keyring-store",
- "windows-native-keyring-store",
- "zbus-secret-service-keyring-store",
-]
-
-[[package]]
 name = "keyring-core"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6078,12 +6065,14 @@ name = "tf2-terminal"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "apple-native-keyring-store",
  "chrono",
  "csv",
  "dirs",
  "futures-util",
  "governor",
- "keyring",
+ "keyring-core",
+ "linux-keyutils-keyring-store",
  "open",
  "printpdf",
  "reqwest",
@@ -6111,6 +6100,8 @@ dependencies = [
  "wasmtime",
  "wasmtime-wasi",
  "wat",
+ "windows-native-keyring-store",
+ "zbus-secret-service-keyring-store",
 ]
 
 [[package]]
