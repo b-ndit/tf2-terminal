@@ -65,10 +65,10 @@ export function PriceChart({ url }: { url: string | null }) {
 
   return (
     <div className="mt-5">
-      <div className="mb-1.5 text-sm font-medium text-zinc-300">Price History (daily)</div>
-      {history.isLoading && <p className="text-sm text-zinc-500">Loading price history…</p>}
+      <div className="mb-1.5 text-sm font-medium text-fg-muted">Price History (daily)</div>
+      {history.isLoading && <p className="text-sm text-fg-subtle">Loading price history…</p>}
       {history.isSuccess && history.data.length === 0 && (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-fg-subtle">
           No price history recorded yet for this item — check back after the next snapshot cycle.
         </p>
       )}

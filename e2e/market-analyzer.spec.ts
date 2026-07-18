@@ -5,7 +5,8 @@ test("analyzes a classifieds URL and shows spread/liquidity/demand and buyer/sel
   await mockTauri(page);
   await page.goto("/");
 
-  await page.getByRole("button", { name: "Market Analyzer" }).click();
+  // Market Analyzer is one of the Dockview panels visible by default in
+  // the "Trading" workspace (docs/DESIGN.md §9) — no tab click needed.
   await page.getByPlaceholder("Paste a backpack.tf classifieds URL…").fill(
     "https://backpack.tf/classifieds?item=Team+Captain&quality=5&particle=701",
   );
@@ -31,7 +32,6 @@ test("shows an error message for an unknown item", async ({ page }) => {
   await mockTauri(page);
   await page.goto("/");
 
-  await page.getByRole("button", { name: "Market Analyzer" }).click();
   await page.getByPlaceholder("Paste a backpack.tf classifieds URL…").fill(
     "https://backpack.tf/classifieds?item=Nonexistent&quality=6",
   );

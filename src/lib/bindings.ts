@@ -138,6 +138,14 @@ export const commands = {
 	 *  plugin has no `panel/index.html`.
 	 */
 	getPluginPanelPath: (name: string) => typedError<string | null, AppError>(__TAURI_INVOKE("get_plugin_panel_path", { name })),
+	/**
+	 *  Writes the current backpack to `path` in `format`. `path` is a value
+	 *  the frontend already obtained from `tauri-plugin-dialog`'s native save
+	 *  picker — this command only ever writes to a location the user picked.
+	 */
+	exportBackpack: (format: ExportFormat, path: string) => typedError<null, AppError>(__TAURI_INVOKE("export_backpack", { format, path })),
+	exportTradeHistory: (format: ExportFormat, path: string) => typedError<null, AppError>(__TAURI_INVOKE("export_trade_history", { format, path })),
+	exportPortfolio: (format: ExportFormat, path: string) => typedError<null, AppError>(__TAURI_INVOKE("export_portfolio", { format, path })),
 };
 
 /** Events */
@@ -207,7 +215,7 @@ export type AnalyzedTradeOffer = {
  *  Each variant maps to a stable `code` so the frontend can localize/branch on
  *  error kind without string-matching the message.
  */
-export type AppError = { code: "config"; message: string } | { code: "database"; message: string } | { code: "keychain"; message: string } | { code: "network"; message: string } | { code: "invalid_input"; message: string } | { code: "internal"; message: string };
+export type AppError = { code: "config"; message: string } | { code: "database"; message: string } | { code: "keychain"; message: string } | { code: "network"; message: string } | { code: "invalid_input"; message: string } | { code: "export"; message: string } | { code: "internal"; message: string };
 
 /**
  *  One backpack entry as the UI wants it: inventory/item data plus the
@@ -254,6 +262,8 @@ export type Config = {
 	inventory_refresh_interval_secs?: number,
 	steam_id?: string | null,
 };
+
+export type ExportFormat = "csv" | "xlsx" | "json" | "pdf";
 
 export type FlipOpportunityView = {
 	item_name: string,

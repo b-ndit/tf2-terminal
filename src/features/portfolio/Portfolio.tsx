@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { LineSeries, createChart, type UTCTimestamp } from "lightweight-charts";
 import { usePlWindows, usePortfolioHistory, usePortfolioSnapshot, useRefreshPortfolio, useWinnersLosers } from "./api";
 import type { ItemMoverView, PlWindowsView, PortfolioSnapshotView } from "./api";
+import { ExportMenu } from "../export/ExportMenu";
 
 function formatRef(value: number | null): string {
   if (value === null) return "—";
@@ -34,17 +35,20 @@ export function Portfolio() {
   const movers = useWinnersLosers(moversWindow);
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-charcoal p-4 text-zinc-200">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-charcoal p-4 text-fg">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Portfolio</h2>
-        <button
-          type="button"
-          onClick={() => refresh.mutate()}
-          disabled={refresh.isPending}
-          className="rounded bg-charcoal-raised px-3 py-1 text-sm hover:bg-charcoal-border disabled:opacity-50"
-        >
-          {refresh.isPending ? "Refreshing…" : "Refresh"}
-        </button>
+        <div className="flex gap-2">
+          <ExportMenu dataset="portfolio" />
+          <button
+            type="button"
+            onClick={() => refresh.mutate()}
+            disabled={refresh.isPending}
+            className="rounded bg-charcoal-raised px-3 py-1 text-sm hover:bg-charcoal-border disabled:opacity-50"
+          >
+            {refresh.isPending ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
       </div>
 
       {snapshot.isError && (
@@ -53,22 +57,22 @@ export function Portfolio() {
         </p>
       )}
       {refresh.isError && <p className="mb-4 text-sm text-red-400">{refresh.error.message}</p>}
-      {snapshot.isLoading && !snapshot.isError && <p className="text-sm text-zinc-500">Valuing your backpack…</p>}
+      {snapshot.isLoading && !snapshot.isError && <p className="text-sm text-fg-subtle">Valuing your backpack…</p>}
 
       {snapshot.data && <SnapshotTiles snapshot={snapshot.data} />}
       {plWindows.data && <PlWindowsRow windows={plWindows.data} />}
 
       <div className="mt-5">
-        <div className="mb-1.5 text-sm font-medium text-zinc-300">Performance (90 days)</div>
+        <div className="mb-1.5 text-sm font-medium text-fg-muted">Performance (90 days)</div>
         {history.isSuccess && history.data.length < 2 && (
-          <p className="text-sm text-zinc-500">Not enough snapshots yet to chart a trend — check back tomorrow.</p>
+          <p className="text-sm text-fg-subtle">Not enough snapshots yet to chart a trend — check back tomorrow.</p>
         )}
         {history.isSuccess && history.data.length >= 2 && <PerformanceChart snapshots={history.data} />}
       </div>
 
       <div className="mt-5">
         <div className="mb-2 flex items-center justify-between">
-          <div className="text-sm font-medium text-zinc-300">Winners &amp; Losers</div>
+          <div className="text-sm font-medium text-fg-muted">Winners &amp; Losers</div>
           <div className="flex gap-1">
             {[1, 7, 30].map((days) => (
               <button
@@ -76,7 +80,7 @@ export function Portfolio() {
                 type="button"
                 onClick={() => setMoversWindow(days)}
                 className={`rounded px-2 py-1 text-xs ${
-                  moversWindow === days ? "bg-charcoal-raised text-zinc-100" : "text-zinc-400 hover:text-zinc-200"
+                  moversWindow === days ? "bg-charcoal-raised text-fg" : "text-fg-muted hover:text-fg"
                 }`}
               >
                 {days}D
@@ -114,10 +118,10 @@ function PlWindowsRow({ windows }: { windows: PlWindowsView }) {
 }
 
 function PlTile({ label, window }: { label: string; window: PlWindowsView["d1"] }) {
-  const color = window === null ? "text-zinc-500" : (window.pct ?? 0) >= 0 ? "text-emerald-400" : "text-red-400";
+  const color = window === null ? "text-fg-subtle" : (window.pct ?? 0) >= 0 ? "text-emerald-400" : "text-red-400";
   return (
     <div className="rounded border border-charcoal-border bg-charcoal-raised px-3 py-2">
-      <div className="text-xs text-zinc-400">{label}</div>
+      <div className="text-xs text-fg-muted">{label}</div>
       <div className={`text-sm font-semibold ${color}`}>
         {window === null ? "—" : `${formatSignedRef(window.abs_ref)} (${formatPct(window.pct)})`}
       </div>
@@ -128,7 +132,7 @@ function PlTile({ label, window }: { label: string; window: PlWindowsView["d1"] 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded border border-charcoal-border bg-charcoal-raised px-3 py-2">
-      <div className="text-xs text-zinc-400">{label}</div>
+      <div className="text-xs text-fg-muted">{label}</div>
       <div className="text-sm font-semibold">{value}</div>
     </div>
   );
@@ -168,7 +172,7 @@ function WinnersLosers({ movers }: { movers: ItemMoverView[] }) {
   const losers = priced.slice(-5).reverse();
 
   if (priced.length === 0) {
-    return <p className="text-sm text-zinc-500">Not enough price history yet to rank movers.</p>;
+    return <p className="text-sm text-fg-subtle">Not enough price history yet to rank movers.</p>;
   }
 
   return (
@@ -184,14 +188,14 @@ function MoverList({ title, items }: { title: string; items: ItemMoverView[] }) 
     <div className="rounded border border-charcoal-border">
       <div className="border-b border-charcoal-border bg-charcoal-raised px-3 py-1.5 text-sm font-medium">{title}</div>
       {items.length === 0 ? (
-        <p className="px-3 py-3 text-sm text-zinc-500">Nothing to show.</p>
+        <p className="px-3 py-3 text-sm text-fg-subtle">Nothing to show.</p>
       ) : (
         <ul className="divide-y divide-charcoal-border">
           {items.map((item, index) => (
             <li key={`${item.item_name}-${index}`} className="flex items-center justify-between px-3 py-1.5 text-sm">
               <span>
                 {item.item_name}
-                {item.count > 1 && <span className="ml-1 text-xs text-zinc-500">×{item.count}</span>}
+                {item.count > 1 && <span className="ml-1 text-xs text-fg-subtle">×{item.count}</span>}
               </span>
               <span className={(item.change_pct ?? 0) >= 0 ? "text-emerald-400" : "text-red-400"}>
                 {formatPct(item.change_pct)}

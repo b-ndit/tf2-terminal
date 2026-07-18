@@ -104,11 +104,11 @@ export function ContextMenu({ items }: ContextMenuProps) {
   return (
     <div
       ref={menuRef}
-      className="fixed z-50 w-56 rounded-md border border-charcoal-border bg-charcoal py-1 text-sm text-zinc-200 shadow-xl"
+      className="fixed z-50 w-56 rounded-md border border-charcoal-border bg-charcoal py-1 text-sm text-fg shadow-xl"
       style={{ top: contextMenu.y, left: contextMenu.x }}
     >
       {targetIds.length > 1 && (
-        <div className="border-b border-charcoal-border px-3 py-1 text-xs text-zinc-400">
+        <div className="border-b border-charcoal-border px-3 py-1 text-xs text-fg-muted">
           {targetIds.length} items selected
         </div>
       )}
@@ -122,7 +122,7 @@ export function ContextMenu({ items }: ContextMenuProps) {
       <MenuItem onClick={handleSetCustomLabel}>Set custom label…</MenuItem>
       <MenuItem onClick={handleSetNote}>Set note…</MenuItem>
       <div className="border-t border-charcoal-border my-1" />
-      <div className="px-3 py-1 text-xs text-zinc-400">Tags</div>
+      <div className="px-3 py-1 text-xs text-fg-muted">Tags</div>
       {tags.map((tag) => {
         const hasTag = primary.tags.some((t) => t.id === tag.id);
         return (

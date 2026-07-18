@@ -23,6 +23,9 @@ pub enum AppError {
     #[error("invalid input: {0}")]
     InvalidInput(String),
 
+    #[error("export error: {0}")]
+    Export(String),
+
     #[error("internal error: {0}")]
     Internal(String),
 }

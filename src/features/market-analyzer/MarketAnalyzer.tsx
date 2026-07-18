@@ -37,14 +37,14 @@ export function MarketAnalyzer() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-charcoal p-4 text-zinc-200">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-charcoal p-4 text-fg">
       <form onSubmit={handleSubmit} className="mb-4 flex gap-2">
         <input
           type="text"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="Paste a backpack.tf classifieds URL…"
-          className="flex-1 rounded border border-charcoal-border bg-charcoal-raised px-3 py-2 text-sm placeholder:text-zinc-500 focus:outline-none"
+          className="flex-1 rounded border border-charcoal-border bg-charcoal-raised px-3 py-2 text-sm placeholder:text-fg-subtle focus:outline-none"
         />
         <button
           type="submit"
@@ -64,7 +64,7 @@ export function MarketAnalyzer() {
       {analyze.data && <AnalyticsResult analytics={analyze.data} url={analyzedUrl} />}
 
       {!analyze.data && !analyze.isError && (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-fg-subtle">
           Paste a classifieds search URL (e.g. from backpack.tf) to see live spread, liquidity, demand, and
           buyers/sellers for that item.
         </p>
@@ -83,7 +83,7 @@ function AnalyticsResult({ analytics, url }: { analytics: ItemAnalytics; url: st
     <div data-testid="analytics-result">
       <h2 className="text-lg font-semibold" style={{ color }}>
         {qualityName(analytics.quality)} {analytics.item_name}
-        {analytics.effect_id !== null && <span className="ml-2 text-sm text-zinc-400">(Effect #{analytics.effect_id})</span>}
+        {analytics.effect_id !== null && <span className="ml-2 text-sm text-fg-muted">(Effect #{analytics.effect_id})</span>}
       </h2>
 
       <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
@@ -119,7 +119,7 @@ function AnalyticsResult({ analytics, url }: { analytics: ItemAnalytics; url: st
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded border border-charcoal-border bg-charcoal-raised px-3 py-2">
-      <div className="text-xs text-zinc-400">{label}</div>
+      <div className="text-xs text-fg-muted">{label}</div>
       <div className="text-sm font-semibold">{value}</div>
     </div>
   );
@@ -130,15 +130,15 @@ function ListingTable({ title, rows }: { title: string; rows: ItemAnalytics["buy
     <div className="rounded border border-charcoal-border">
       <div className="border-b border-charcoal-border bg-charcoal-raised px-3 py-1.5 text-sm font-medium">{title}</div>
       {rows.length === 0 ? (
-        <p className="px-3 py-3 text-sm text-zinc-500">No active listings observed yet.</p>
+        <p className="px-3 py-3 text-sm text-fg-subtle">No active listings observed yet.</p>
       ) : (
         <table className="w-full text-sm">
           <tbody>
             {rows.map((row) => (
               <tr key={row.listing_id} className="border-b border-charcoal-border last:border-0">
-                <td className="px-3 py-1.5 text-zinc-300">{row.steam_name ?? row.steam_id}</td>
+                <td className="px-3 py-1.5 text-fg-muted">{row.steam_name ?? row.steam_id}</td>
                 <td className="px-3 py-1.5 text-right font-medium">{(row.price_ref ?? 0).toFixed(2)} ref</td>
-                <td className="px-3 py-1.5 text-right text-xs text-zinc-500">{(row.age_hours ?? 0).toFixed(1)}h ago</td>
+                <td className="px-3 py-1.5 text-right text-xs text-fg-subtle">{(row.age_hours ?? 0).toFixed(1)}h ago</td>
               </tr>
             ))}
           </tbody>

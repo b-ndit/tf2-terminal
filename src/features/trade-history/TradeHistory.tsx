@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSetTradeNotes, useSetTradeRating, useSyncCompletedTrades, useTrades } from "./api";
 import type { TradeLedgerView } from "./api";
+import { ExportMenu } from "../export/ExportMenu";
 
 const STARS_MAX = 5;
 
@@ -20,17 +21,20 @@ export function TradeHistory() {
   const sync = useSyncCompletedTrades();
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-charcoal p-4 text-zinc-200">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-charcoal p-4 text-fg">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Trade History</h2>
-        <button
-          type="button"
-          onClick={() => sync.mutate()}
-          disabled={sync.isPending}
-          className="rounded bg-quality-unique px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50"
-        >
-          {sync.isPending ? "Syncing…" : "Sync"}
-        </button>
+        <div className="flex gap-2">
+          <ExportMenu dataset="trade-history" />
+          <button
+            type="button"
+            onClick={() => sync.mutate()}
+            disabled={sync.isPending}
+            className="rounded bg-quality-unique px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50"
+          >
+            {sync.isPending ? "Syncing…" : "Sync"}
+          </button>
+        </div>
       </div>
 
       {sync.isError && (
@@ -39,7 +43,7 @@ export function TradeHistory() {
         </p>
       )}
       {sync.isSuccess && (
-        <p className="mb-4 text-sm text-zinc-400">
+        <p className="mb-4 text-sm text-fg-muted">
           Checked {sync.data.checked} completed offer(s), imported {sync.data.imported} new trade(s).
         </p>
       )}
@@ -49,9 +53,9 @@ export function TradeHistory() {
           {trades.error.message}
         </p>
       )}
-      {trades.isLoading && !trades.isError && <p className="text-sm text-zinc-500">Loading trade history…</p>}
+      {trades.isLoading && !trades.isError && <p className="text-sm text-fg-subtle">Loading trade history…</p>}
       {!trades.isLoading && !trades.isError && (trades.data ?? []).length === 0 && (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-fg-subtle">
           No completed trades recorded yet. Click "Sync" to check for newly-completed Steam trade offers.
         </p>
       )}
@@ -75,7 +79,7 @@ function TradeRow({ trade }: { trade: TradeLedgerView }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <div className="text-sm font-medium">Partner: {trade.partner_steam_id}</div>
-          <div className="text-xs text-zinc-500">{formatDate(trade.completed_ts)}</div>
+          <div className="text-xs text-fg-subtle">{formatDate(trade.completed_ts)}</div>
         </div>
         <div className="flex items-center gap-3">
           <span className={`text-sm font-semibold ${(trade.net_value_ref ?? 0) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
@@ -103,7 +107,7 @@ function TradeRow({ trade }: { trade: TradeLedgerView }) {
         }}
         placeholder="Add a note…"
         rows={2}
-        className="mt-2 w-full rounded border border-charcoal-border bg-charcoal px-2 py-1 text-sm placeholder:text-zinc-500 focus:outline-none"
+        className="mt-2 w-full rounded border border-charcoal-border bg-charcoal px-2 py-1 text-sm placeholder:text-fg-subtle focus:outline-none"
       />
     </div>
   );
@@ -130,15 +134,15 @@ function StarRating({ value, onChange }: { value: number; onChange: (rating: num
 function ItemList({ title, items }: { title: string; items: TradeLedgerView["given"] }) {
   return (
     <div className="rounded border border-charcoal-border">
-      <div className="border-b border-charcoal-border px-2 py-1 text-xs font-medium text-zinc-400">{title}</div>
+      <div className="border-b border-charcoal-border px-2 py-1 text-xs font-medium text-fg-muted">{title}</div>
       {items.length === 0 ? (
-        <p className="px-2 py-1.5 text-xs text-zinc-500">No items</p>
+        <p className="px-2 py-1.5 text-xs text-fg-subtle">No items</p>
       ) : (
         <ul className="divide-y divide-charcoal-border">
           {items.map((item, index) => (
             <li key={`${item.name}-${index}`} className="flex items-center justify-between px-2 py-1 text-xs">
-              <span className={item.value_ref === null ? "italic text-zinc-500" : "text-zinc-200"}>{item.name}</span>
-              <span className="text-zinc-400">{item.value_ref === null ? "—" : `${item.value_ref.toFixed(2)} ref`}</span>
+              <span className={item.value_ref === null ? "italic text-fg-subtle" : "text-fg"}>{item.name}</span>
+              <span className="text-fg-muted">{item.value_ref === null ? "—" : `${item.value_ref.toFixed(2)} ref`}</span>
             </li>
           ))}
         </ul>

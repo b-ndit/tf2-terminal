@@ -18,5 +18,5 @@ implementation roadmap.
 - Unit tests for all domain logic
 
 ## Current status
-Modules 1–14 complete (Foundation through Plugin System).
-Ready to begin Module 15 (Power User + Polish) — the final module.
+Modules 1–15 complete (Foundation through Power User + Polish). All 15
+roadmap modules shipped — see `docs/RELEASE.md` for packaging/release.

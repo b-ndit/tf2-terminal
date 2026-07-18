@@ -3,12 +3,21 @@
 /*
  * TF2 quality colors are the game's real, stable conventions (unchanged
  * since ~2011) — used as the accent system throughout the UI, per
- * docs/DESIGN.md §9.
+ * docs/DESIGN.md §9. They stay fixed across every theme preset below.
+ *
+ * `--color-fg`/`-muted`/`-subtle` are the semantic text-color tokens used
+ * in place of Tailwind's built-in `text-zinc-*` scale throughout
+ * `src/features/**` — those are static hex values that don't react to
+ * `data-theme`, so a light theme needs its own tokens to stay legible.
  */
 @theme {
   --color-charcoal: #17181c;
   --color-charcoal-raised: #1f2025;
   --color-charcoal-border: #2a2b31;
+
+  --color-fg: #e4e4e7;
+  --color-fg-muted: #a1a1aa;
+  --color-fg-subtle: #71717a;
 
   --color-quality-normal: #b2b2b2;
   --color-quality-genuine: #4d7455;
@@ -30,10 +39,34 @@
   color-scheme: dark;
 }
 
+/*
+ * Theme presets (Module 15), selected via
+ * `document.documentElement.dataset.theme` (src/stores/themeStore.ts).
+ * Attribute selectors here out-specificity the plain `:root` default that
+ * Tailwind's `@theme` block generates above, so only listed variables need
+ * to be overridden per preset.
+ */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-charcoal: #f4f5f7;
+  --color-charcoal-raised: #ffffff;
+  --color-charcoal-border: #dcdfe4;
+  --color-fg: #1c1d21;
+  --color-fg-muted: #52525b;
+  --color-fg-subtle: #71717a;
+}
+
+:root[data-theme="oled"] {
+  color-scheme: dark;
+  --color-charcoal: #000000;
+  --color-charcoal-raised: #0a0a0a;
+  --color-charcoal-border: #1a1a1a;
+}
+
 body {
   margin: 0;
   background-color: var(--color-charcoal);
-  color: #e4e4e7;
+  color: var(--color-fg);
   font-family:
     Inter,
     Avenir,

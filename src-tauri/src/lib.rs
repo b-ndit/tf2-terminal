@@ -77,6 +77,9 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::plugins::set_plugin_enabled,
             commands::plugins::uninstall_plugin,
             commands::plugins::get_plugin_panel_path,
+            commands::export::export_backpack,
+            commands::export::export_trade_history,
+            commands::export::export_portfolio,
         ])
         .events(collect_events![
             commands::inventory::InventoryChanged,
@@ -106,6 +109,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(specta_builder.invoke_handler())
         .manage(app_state)
         .setup(move |app| {

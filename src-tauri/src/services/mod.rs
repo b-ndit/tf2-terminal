@@ -1,5 +1,6 @@
 pub mod alert_service;
 pub mod backpack_service;
+pub mod export_service;
 pub mod flip_finder;
 pub mod history_recorder;
 pub mod inventory_service;

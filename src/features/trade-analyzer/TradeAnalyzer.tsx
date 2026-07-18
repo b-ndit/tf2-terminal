@@ -42,20 +42,20 @@ export function TradeAnalyzer() {
   const { data: trades = [], isLoading, isFetching, error } = useActiveTrades();
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-charcoal p-4 text-zinc-200">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-charcoal p-4 text-fg">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Trade Analyzer</h2>
-        <span className="text-xs text-zinc-500">{isFetching ? "Checking for offers…" : "Refreshes automatically"}</span>
+        <span className="text-xs text-fg-subtle">{isFetching ? "Checking for offers…" : "Refreshes automatically"}</span>
       </div>
 
       {error && (
         <p className="mb-4 rounded border border-red-900 bg-red-950/40 px-3 py-2 text-sm text-red-400">{error.message}</p>
       )}
 
-      {isLoading && !error && <p className="text-sm text-zinc-500">Loading active trade offers…</p>}
+      {isLoading && !error && <p className="text-sm text-fg-subtle">Loading active trade offers…</p>}
 
       {!isLoading && !error && trades.length === 0 && (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-fg-subtle">
           No active trade offers right now. This panel checks for new offers automatically every 20 seconds.
         </p>
       )}
@@ -75,7 +75,7 @@ function TradeCard({ trade }: { trade: AnalyzedTradeOffer }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <div className="text-sm font-medium">Partner: {trade.partner_steam_id}</div>
-          {trade.message && <div className="text-xs italic text-zinc-400">"{trade.message}"</div>}
+          {trade.message && <div className="text-xs italic text-fg-muted">"{trade.message}"</div>}
         </div>
         <div className="flex items-center gap-3">
           <span className="text-lg text-quality-unique" title={`${trade.stars}/5 stars`}>
@@ -98,7 +98,7 @@ function TradeCard({ trade }: { trade: AnalyzedTradeOffer }) {
       </div>
 
       {trade.explanation.length > 0 && (
-        <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-zinc-400">
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-fg-muted">
           {trade.explanation.map((line) => (
             <li key={line}>{line}</li>
           ))}
@@ -113,15 +113,15 @@ function TradeCard({ trade }: { trade: AnalyzedTradeOffer }) {
 function ItemList({ title, items }: { title: string; items: AnalyzedTradeOffer["given_items"] }) {
   return (
     <div className="rounded border border-charcoal-border">
-      <div className="border-b border-charcoal-border px-3 py-1.5 text-xs font-medium text-zinc-400">{title}</div>
+      <div className="border-b border-charcoal-border px-3 py-1.5 text-xs font-medium text-fg-muted">{title}</div>
       {items.length === 0 ? (
-        <p className="px-3 py-2 text-xs text-zinc-500">No items</p>
+        <p className="px-3 py-2 text-xs text-fg-subtle">No items</p>
       ) : (
         <ul className="divide-y divide-charcoal-border">
           {items.map((item, index) => (
             <li key={`${item.name}-${index}`} className="flex items-center justify-between px-3 py-1.5 text-sm">
-              <span className={item.estimated_ref === null ? "italic text-zinc-500" : "text-zinc-200"}>{item.name}</span>
-              <span className="text-xs text-zinc-400">{formatRef(item.estimated_ref)}</span>
+              <span className={item.estimated_ref === null ? "italic text-fg-subtle" : "text-fg"}>{item.name}</span>
+              <span className="text-xs text-fg-muted">{formatRef(item.estimated_ref)}</span>
             </li>
           ))}
         </ul>
@@ -133,7 +133,7 @@ function ItemList({ title, items }: { title: string; items: AnalyzedTradeOffer["
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded border border-charcoal-border bg-charcoal px-3 py-2">
-      <div className="text-xs text-zinc-400">{label}</div>
+      <div className="text-xs text-fg-muted">{label}</div>
       <div className="text-sm font-semibold">{value}</div>
     </div>
   );

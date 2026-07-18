@@ -55,33 +55,33 @@ export function FlipFinder() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-charcoal p-4 text-zinc-200">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-charcoal p-4 text-fg">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Flip Finder</h2>
-        <span className="text-xs text-zinc-500">{opportunities.isFetching ? "Scanning…" : "Refreshes automatically"}</span>
+        <span className="text-xs text-fg-subtle">{opportunities.isFetching ? "Scanning…" : "Refreshes automatically"}</span>
       </div>
 
       <div className="mb-4 flex flex-wrap items-end gap-3 rounded border border-charcoal-border bg-charcoal-raised p-3">
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-zinc-400">Min ROI %</label>
+          <label className="text-xs text-fg-muted">Min ROI %</label>
           <input
             type="number"
             step="0.1"
             value={minRoiInput}
             onChange={(e) => setMinRoiInput(e.target.value)}
             placeholder="any"
-            className="w-24 rounded border border-charcoal-border bg-charcoal px-3 py-2 text-sm placeholder:text-zinc-500"
+            className="w-24 rounded border border-charcoal-border bg-charcoal px-3 py-2 text-sm placeholder:text-fg-subtle"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-zinc-400">Min Confidence</label>
+          <label className="text-xs text-fg-muted">Min Confidence</label>
           <input
             type="number"
             step="1"
             value={minConfidenceInput}
             onChange={(e) => setMinConfidenceInput(e.target.value)}
             placeholder="any"
-            className="w-24 rounded border border-charcoal-border bg-charcoal px-3 py-2 text-sm placeholder:text-zinc-500"
+            className="w-24 rounded border border-charcoal-border bg-charcoal px-3 py-2 text-sm placeholder:text-fg-subtle"
           />
         </div>
       </div>
@@ -91,9 +91,9 @@ export function FlipFinder() {
           {opportunities.error.message}
         </p>
       )}
-      {opportunities.isLoading && !opportunities.isError && <p className="text-sm text-zinc-500">Scanning for flip opportunities…</p>}
+      {opportunities.isLoading && !opportunities.isError && <p className="text-sm text-fg-subtle">Scanning for flip opportunities…</p>}
       {!opportunities.isLoading && !opportunities.isError && (opportunities.data ?? []).length === 0 && (
-        <p className="mb-6 text-sm text-zinc-500">
+        <p className="mb-6 text-sm text-fg-subtle">
           No flip opportunities match right now. Try loosening the filters, or watch more items below.
         </p>
       )}
@@ -102,7 +102,7 @@ export function FlipFinder() {
         <div className="mb-6 overflow-x-auto rounded border border-charcoal-border">
           <table className="w-full min-w-[720px] text-sm">
             <thead>
-              <tr className="border-b border-charcoal-border bg-charcoal-raised text-left text-xs text-zinc-400">
+              <tr className="border-b border-charcoal-border bg-charcoal-raised text-left text-xs text-fg-muted">
                 <th className="px-3 py-2 font-medium">Item</th>
                 <th className="px-3 py-2 font-medium text-right">Buy</th>
                 <th className="px-3 py-2 font-medium text-right">Sell</th>
@@ -122,14 +122,14 @@ export function FlipFinder() {
       )}
 
       <div>
-        <h3 className="mb-2 text-sm font-medium text-zinc-400">Watchlist</h3>
+        <h3 className="mb-2 text-sm font-medium text-fg-muted">Watchlist</h3>
         <form onSubmit={handleAddToWatchlist} className="mb-3 flex gap-2">
           <input
             type="text"
             value={watchUrl}
             onChange={(e) => setWatchUrl(e.target.value)}
             placeholder="Paste a backpack.tf classifieds URL…"
-            className="flex-1 rounded border border-charcoal-border bg-charcoal-raised px-3 py-2 text-sm placeholder:text-zinc-500 focus:outline-none"
+            className="flex-1 rounded border border-charcoal-border bg-charcoal-raised px-3 py-2 text-sm placeholder:text-fg-subtle focus:outline-none"
           />
           <button
             type="submit"
@@ -143,7 +143,7 @@ export function FlipFinder() {
 
         <div className="rounded border border-charcoal-border">
           {(watchlist.data ?? []).length === 0 ? (
-            <p className="px-3 py-3 text-sm text-zinc-500">Not watching any items yet.</p>
+            <p className="px-3 py-3 text-sm text-fg-subtle">Not watching any items yet.</p>
           ) : (
             watchlist.data!.map((item) => (
               <div
@@ -182,13 +182,13 @@ function OpportunityRow({ opportunity }: { opportunity: FlipOpportunityView }) {
       <td className="px-3 py-2 text-right">
         {formatRef(opportunity.sell_price_ref)}
         {opportunity.quicksell_ref !== null && (
-          <div className="text-xs text-zinc-500">quicksell {formatRef(opportunity.quicksell_ref)}</div>
+          <div className="text-xs text-fg-subtle">quicksell {formatRef(opportunity.quicksell_ref)}</div>
         )}
       </td>
       <td className="px-3 py-2 text-right font-medium text-emerald-400">{formatSignedRef(opportunity.expected_profit_ref)}</td>
       <td className="px-3 py-2 text-right">{formatPct(opportunity.roi_pct)}</td>
       <td className="px-3 py-2 text-right">{(opportunity.confidence ?? 0).toFixed(0)}</td>
-      <td className="px-3 py-2 text-right text-zinc-400">{formatHours(opportunity.est_sale_time_hours)}</td>
+      <td className="px-3 py-2 text-right text-fg-muted">{formatHours(opportunity.est_sale_time_hours)}</td>
     </tr>
   );
 }

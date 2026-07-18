@@ -22,12 +22,12 @@ export function Plugins() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-charcoal p-4 text-zinc-200">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-charcoal p-4 text-fg">
       <h2 className="mb-4 text-lg font-semibold">Plugins</h2>
 
       <div className="mb-4 rounded border border-charcoal-border bg-charcoal-raised p-3">
         <div className="mb-2 text-sm font-medium">Install a plugin</div>
-        <p className="mb-2 text-xs text-zinc-500">
+        <p className="mb-2 text-xs text-fg-subtle">
           Enter the path to a local folder containing <code>plugin.toml</code> and its wasm entry file. Installing runs
           the plugin with exactly the capabilities its manifest requests — check{" "}
           <code>plugin.toml</code> before installing anything you don't trust.
@@ -38,7 +38,7 @@ export function Plugins() {
             value={sourceDir}
             onChange={(e) => setSourceDir(e.target.value)}
             placeholder="/path/to/plugin-folder"
-            className="flex-1 rounded border border-charcoal-border bg-charcoal px-2 py-1.5 text-sm placeholder:text-zinc-500 focus:outline-none"
+            className="flex-1 rounded border border-charcoal-border bg-charcoal px-2 py-1.5 text-sm placeholder:text-fg-subtle focus:outline-none"
           />
           <button
             type="button"
@@ -54,9 +54,9 @@ export function Plugins() {
 
       {error && <p className="text-sm text-red-400">{error.message}</p>}
       {isLoading ? (
-        <p className="text-sm text-zinc-500">Loading…</p>
+        <p className="text-sm text-fg-subtle">Loading…</p>
       ) : plugins.length === 0 ? (
-        <p className="text-sm text-zinc-500">No plugins installed yet.</p>
+        <p className="text-sm text-fg-subtle">No plugins installed yet.</p>
       ) : (
         <div className="flex flex-col gap-3">
           {plugins.map((plugin) => (
@@ -79,11 +79,11 @@ function PluginCard({ plugin }: { plugin: PluginSummary }) {
       <div className="flex items-center justify-between">
         <div>
           <div className="text-sm font-medium">
-            {plugin.name} <span className="text-xs text-zinc-500">v{plugin.version}</span>
+            {plugin.name} <span className="text-xs text-fg-subtle">v{plugin.version}</span>
           </div>
           <div className="mt-1 flex flex-wrap gap-1">
             {plugin.capabilities.map((cap) => (
-              <span key={cap} className="rounded bg-charcoal px-1.5 py-0.5 text-[10px] text-zinc-400">
+              <span key={cap} className="rounded bg-charcoal px-1.5 py-0.5 text-[10px] text-fg-muted">
                 {cap}
               </span>
             ))}
@@ -95,7 +95,7 @@ function PluginCard({ plugin }: { plugin: PluginSummary }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1 text-xs text-zinc-400">
+          <label className="flex items-center gap-1 text-xs text-fg-muted">
             <input
               type="checkbox"
               checked={plugin.enabled}
@@ -136,7 +136,7 @@ function PluginCard({ plugin }: { plugin: PluginSummary }) {
               className="h-64 w-full bg-charcoal"
             />
           ) : (
-            <p className="p-3 text-xs text-zinc-500">Loading panel…</p>
+            <p className="p-3 text-xs text-fg-subtle">Loading panel…</p>
           )}
         </div>
       )}

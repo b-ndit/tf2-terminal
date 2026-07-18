@@ -1,6 +1,7 @@
 pub mod backpack_tf;
 pub mod config;
 pub mod db;
+pub mod export;
 pub mod keychain;
 pub mod notify;
 pub mod plugins;

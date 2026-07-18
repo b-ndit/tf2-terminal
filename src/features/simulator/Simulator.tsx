@@ -99,9 +99,9 @@ export function Simulator() {
   const filteredInventory = inventory.filter((i) => i.name.toLowerCase().includes(ownedFilter.toLowerCase()));
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-charcoal p-4 text-zinc-200">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-charcoal p-4 text-fg">
       <h2 className="mb-4 text-lg font-semibold">Simulator</h2>
-      <p className="mb-4 text-xs text-zinc-500">
+      <p className="mb-4 text-xs text-fg-subtle">
         Drag items (or click "Add") into either bucket to see how a hypothetical trade would rate.
       </p>
 
@@ -130,10 +130,10 @@ export function Simulator() {
           </DropZone>
 
           {verdict.isError && <p className="text-sm text-red-400">{verdict.error.message}</p>}
-          {verdict.isLoading && <p className="text-sm text-zinc-500">Valuing…</p>}
+          {verdict.isLoading && <p className="text-sm text-fg-subtle">Valuing…</p>}
           {verdict.data && <VerdictPanel verdict={verdict.data} />}
           {!verdict.data && !verdict.isError && !verdict.isLoading && given.length === 0 && received.length === 0 && (
-            <p className="text-sm text-zinc-500">Add items to both sides to get a verdict.</p>
+            <p className="text-sm text-fg-subtle">Add items to both sides to get a verdict.</p>
           )}
         </div>
 
@@ -162,11 +162,11 @@ function YourItemsPane({
         value={filter}
         onChange={(e) => onFilterChange(e.target.value)}
         placeholder="Filter your backpack…"
-        className="border-b border-charcoal-border bg-charcoal px-3 py-2 text-sm placeholder:text-zinc-500 focus:outline-none"
+        className="border-b border-charcoal-border bg-charcoal px-3 py-2 text-sm placeholder:text-fg-subtle focus:outline-none"
       />
       <div className="max-h-96 flex-1 overflow-y-auto">
         {items.length === 0 ? (
-          <p className="px-3 py-3 text-sm text-zinc-500">No matching items.</p>
+          <p className="px-3 py-3 text-sm text-fg-subtle">No matching items.</p>
         ) : (
           items.slice(0, 200).map((item) => (
             <div
@@ -220,7 +220,7 @@ function DropZone({
       }}
       className={`min-h-24 rounded border-2 border-dashed p-2 ${isOver ? "border-quality-unique bg-charcoal-raised" : "border-charcoal-border"}`}
     >
-      <div className="mb-2 text-sm font-medium text-zinc-300">{title}</div>
+      <div className="mb-2 text-sm font-medium text-fg-muted">{title}</div>
       <div className="flex flex-wrap gap-1.5">{children}</div>
     </div>
   );
@@ -230,7 +230,7 @@ function Chip({ label, color, onRemove }: { label: string; color: string; onRemo
   return (
     <span className="flex items-center gap-1 rounded bg-charcoal px-2 py-1 text-xs" style={{ color }}>
       {label}
-      <button type="button" onClick={onRemove} className="text-zinc-500 hover:text-zinc-300">
+      <button type="button" onClick={onRemove} className="text-fg-subtle hover:text-fg-muted">
         ×
       </button>
     </span>
@@ -261,7 +261,7 @@ function SearchPane({
           value={filters.name}
           onChange={(e) => onFiltersChange({ ...filters, name: e.target.value })}
           placeholder="Item name…"
-          className="rounded border border-charcoal-border bg-charcoal px-2 py-1.5 text-sm placeholder:text-zinc-500 focus:outline-none"
+          className="rounded border border-charcoal-border bg-charcoal px-2 py-1.5 text-sm placeholder:text-fg-subtle focus:outline-none"
         />
         <div className="grid grid-cols-2 gap-2">
           <select
@@ -288,7 +288,7 @@ function SearchPane({
             <option value="false">No effect</option>
           </select>
         </div>
-        <div className="flex gap-3 text-xs text-zinc-300">
+        <div className="flex gap-3 text-xs text-fg-muted">
           <label className="flex items-center gap-1">
             <input
               type="checkbox"
@@ -309,11 +309,11 @@ function SearchPane({
       </div>
       <div className="max-h-96 flex-1 overflow-y-auto">
         {!filtersActive && (
-          <p className="px-3 py-3 text-sm text-zinc-500">Type a name or pick a filter to search the item catalog.</p>
+          <p className="px-3 py-3 text-sm text-fg-subtle">Type a name or pick a filter to search the item catalog.</p>
         )}
-        {filtersActive && isLoading && <p className="px-3 py-3 text-sm text-zinc-500">Searching…</p>}
+        {filtersActive && isLoading && <p className="px-3 py-3 text-sm text-fg-subtle">Searching…</p>}
         {filtersActive && !isLoading && results.length === 0 && (
-          <p className="px-3 py-3 text-sm text-zinc-500">No matches.</p>
+          <p className="px-3 py-3 text-sm text-fg-subtle">No matches.</p>
         )}
         {results.map((item) => (
           <div
@@ -348,24 +348,24 @@ function VerdictPanel({ verdict }: { verdict: SimulatedTradeView }) {
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
         <div>
-          <div className="text-xs text-zinc-400">Net</div>
+          <div className="text-xs text-fg-muted">Net</div>
           <div className="font-semibold">{formatSignedRef(verdict.net_ref)}</div>
         </div>
         <div>
-          <div className="text-xs text-zinc-400">ROI</div>
+          <div className="text-xs text-fg-muted">ROI</div>
           <div className="font-semibold">{formatPct(verdict.roi_pct)}</div>
         </div>
         <div>
-          <div className="text-xs text-zinc-400">You Give</div>
+          <div className="text-xs text-fg-muted">You Give</div>
           <div className="font-semibold">{(verdict.given_total_ref ?? 0).toFixed(2)} ref</div>
         </div>
         <div>
-          <div className="text-xs text-zinc-400">You Receive</div>
+          <div className="text-xs text-fg-muted">You Receive</div>
           <div className="font-semibold">{(verdict.received_total_ref ?? 0).toFixed(2)} ref</div>
         </div>
       </div>
       {verdict.explanation.length > 0 && (
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-zinc-400">
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-fg-muted">
           {verdict.explanation.map((line) => (
             <li key={line}>{line}</li>
           ))}

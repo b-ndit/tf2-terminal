@@ -83,7 +83,7 @@ export function ItemTile({ item, isSelected, style, onSelect, onContextMenu }: I
           </span>
         )}
 
-        <span className="line-clamp-3 text-[11px] leading-tight text-zinc-200">
+        <span className="line-clamp-3 text-[11px] leading-tight text-fg">
           {item.meta.custom_label ?? item.name}
         </span>
 
@@ -95,20 +95,20 @@ export function ItemTile({ item, isSelected, style, onSelect, onContextMenu }: I
 
 function ItemTooltip({ item }: { item: BackpackItem }) {
   return (
-    <div className="pointer-events-none absolute top-full left-1/2 z-20 mt-1 hidden w-56 -translate-x-1/2 rounded-md border border-charcoal-border bg-charcoal p-2 text-left text-xs text-zinc-200 shadow-lg group-hover:block">
+    <div className="pointer-events-none absolute top-full left-1/2 z-20 mt-1 hidden w-56 -translate-x-1/2 rounded-md border border-charcoal-border bg-charcoal p-2 text-left text-xs text-fg shadow-lg group-hover:block">
       <p className="font-semibold" style={{ color: qualityColor(item.quality) }}>
         {qualityName(item.quality)} {item.name}
       </p>
-      {item.meta.custom_label && <p className="text-zinc-400">"{item.meta.custom_label}"</p>}
+      {item.meta.custom_label && <p className="text-fg-muted">"{item.meta.custom_label}"</p>}
       {item.killstreak_tier > 0 && <p>{killstreakName(item.killstreak_tier)}</p>}
       {item.strange_count !== null && <p>Strange count: {item.strange_count}</p>}
       {item.craft_number !== null && <p>Craft #{item.craft_number}</p>}
       {item.paint_id !== null && <p>Paint: {paintToHex(item.paint_id)}</p>}
-      <p className="text-zinc-400">
+      <p className="text-fg-muted">
         {item.tradable ? "Tradable" : "Not tradable"} ·{" "}
         {item.marketable === true ? "Marketable" : item.marketable === false ? "Not marketable" : "Marketable: unknown"}
       </p>
-      {item.meta.folder && <p className="text-zinc-400">Folder: {item.meta.folder}</p>}
+      {item.meta.folder && <p className="text-fg-muted">Folder: {item.meta.folder}</p>}
       {item.tags.length > 0 && (
         <p className="mt-1 flex flex-wrap gap-1">
           {item.tags.map((tag) => (
@@ -122,7 +122,7 @@ function ItemTooltip({ item }: { item: BackpackItem }) {
           ))}
         </p>
       )}
-      {item.meta.note && <p className="mt-1 text-zinc-400 italic">{item.meta.note}</p>}
+      {item.meta.note && <p className="mt-1 text-fg-muted italic">{item.meta.note}</p>}
     </div>
   );
 }
