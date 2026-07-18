@@ -26,7 +26,7 @@
 - **Layout/docking:** Dockview (dockable panels, saved layouts, multi-window) — this is what gives the "Bloomberg terminal" feel
 - **Styling:** Tailwind CSS + CSS variables for themeability
 - **Rust crates:** `tokio` (async runtime), `reqwest` (HTTP), `tokio-tungstenite` (backpack.tf websocket), `sqlx` (async SQLite, compile-time checked queries), `serde`, `tracing` (structured logging), `governor` (rate limiting), `keyring` (OS credential store)
-- **DB:** SQLite in WAL mode. One file, zero admin, easily handles millions of price-point rows with proper indexes.
+- **DB:** SQLite in WAL mode. One file, zero admin, easily handles millions of price-point rows with proper indexes. **Deviation (Module 15, found live):** `synchronous` was left at sqlx/SQLite's own default (`FULL`), which fsyncs on every single commit even in WAL mode — with `market_listings` upserted roughly once per incoming websocket event (a genuine firehose across the whole TF2 economy), that meant an fsync per listing. Verified live: "slow statement" warnings over 1s for a single indexed upsert, with unrelated writers (e.g. a schema sync) queuing up behind them. Switched to `synchronous=NORMAL` — SQLite's own documented pairing for WAL mode (the WAL already makes a crash safe against corruption; the only real tradeoff is losing the last few not-yet-checkpointed writes on an OS-level power loss, acceptable for cached market data). Verified live: the same workload that produced 1s+ stalls before ran ~138k upserts in 15s afterward with none.
 - **Testing:** `cargo test` + `insta` snapshots (Rust); Vitest + React Testing Library (frontend); Playwright for E2E smoke tests
 
 ### Rejected alternatives
