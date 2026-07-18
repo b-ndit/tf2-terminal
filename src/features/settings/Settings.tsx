@@ -71,7 +71,8 @@ function SchemaSyncField() {
       </button>
       {sync.isSuccess && (
         <p className="mt-2 text-xs text-quality-genuine">
-          Synced {sync.data.items_synced} items ({sync.data.items_in_db} in database).
+          Synced {sync.data.items_synced} items ({sync.data.items_in_db} in database
+          {sync.data.unknown_names_fixed > 0 && `, ${sync.data.unknown_names_fixed} previously-unknown fixed`}).
         </p>
       )}
       {sync.isError && <p className="mt-2 text-xs text-red-400">{sync.error.message}</p>}

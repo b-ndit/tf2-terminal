@@ -27,6 +27,10 @@ pub struct SchemaSyncSummary {
     /// `items_synced` once inventory/market data starts adding permutations
     /// (Strange, Unusual+effect, ...) beyond the schema's base entries.
     pub items_in_db: u32,
+    /// Previously-unresolved "Unknown Item {defindex}" rows (inventory
+    /// sync's fallback, for a permutation the schema itself never creates
+    /// — see `ItemsRepo::backfill_unknown_names`) fixed by this sync.
+    pub unknown_names_fixed: u32,
 }
 
 /// Syncs Valve's TF2 item schema: fetches (or reuses a cached, still-fresh
@@ -39,12 +43,14 @@ pub async fn sync(state: &AppState) -> AppResult<SchemaSyncSummary> {
         let items: Vec<SchemaItem> = serde_json::from_slice(&cached)
             .map_err(|e| AppError::Internal(format!("corrupt cached schema items: {e}")))?;
         let overview = load_cached_overview(state).await?;
+        let unknown_names_fixed = ItemsRepo::backfill_unknown_names(&state.db).await? as u32;
         return Ok(SchemaSyncSummary {
             items_synced: items.len() as u32,
             particles_cached: overview.as_ref().map_or(0, |o| o.particles.len()) as u32,
             qualities_cached: overview.as_ref().map_or(0, |o| o.quality_names.len()) as u32,
             from_cache: true,
             items_in_db: ItemsRepo::count(&state.db).await? as u32,
+            unknown_names_fixed,
         });
     }
 
@@ -81,12 +87,15 @@ pub async fn sync(state: &AppState) -> AppResult<SchemaSyncSummary> {
         tracing::debug!(sku = %key.to_sku(), item_id = id, "synced schema item");
     }
 
+    let unknown_names_fixed = ItemsRepo::backfill_unknown_names(&state.db).await? as u32;
+
     Ok(SchemaSyncSummary {
         items_synced: items.len() as u32,
         particles_cached: overview.particles.len() as u32,
         qualities_cached: overview.quality_names.len() as u32,
         from_cache: false,
         items_in_db: ItemsRepo::count(&state.db).await? as u32,
+        unknown_names_fixed,
     })
 }
 

@@ -502,6 +502,12 @@ export type SchemaSyncSummary = {
 	 *  (Strange, Unusual+effect, ...) beyond the schema's base entries.
 	 */
 	items_in_db: number,
+	/**
+	 *  Previously-unresolved "Unknown Item {defindex}" rows (inventory
+	 *  sync's fallback, for a permutation the schema itself never creates
+	 *  — see `ItemsRepo::backfill_unknown_names`) fixed by this sync.
+	 */
+	unknown_names_fixed: number,
 };
 
 /**

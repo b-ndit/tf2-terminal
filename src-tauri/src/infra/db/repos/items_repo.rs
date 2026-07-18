@@ -108,6 +108,44 @@ impl ItemsRepo {
         Ok(())
     }
 
+    /// Repairs rows still carrying `inventory_service::sync`'s "Unknown
+    /// Item {defindex}" fallback name after a schema sync (Module 15,
+    /// found live). Schema sync only ever creates/updates each defindex's
+    /// *base*-quality row (the schema has no per-permutation data); a
+    /// Strange/Unusual/etc. permutation seeded first by inventory sync is
+    /// a *different* row (quality is part of the uniqueness key) that
+    /// schema sync never touches, and stays stuck with its fallback name
+    /// forever otherwise — `find_name_by_defindex` would resolve it
+    /// correctly on a fresh sync, but inventory sync's own diff logic
+    /// never re-resolves a name for an item whose raw Steam data hasn't
+    /// changed. Copies name + image_url from any same-defindex row that
+    /// already has a real name. Returns the number of rows fixed.
+    pub async fn backfill_unknown_names(pool: &SqlitePool) -> AppResult<u64> {
+        let result = sqlx::query(
+            r#"
+            UPDATE items
+            SET name = (
+                    SELECT src.name FROM items src
+                    WHERE src.defindex = items.defindex AND src.name NOT LIKE 'Unknown Item %'
+                    LIMIT 1
+                ),
+                image_url = (
+                    SELECT src.image_url FROM items src
+                    WHERE src.defindex = items.defindex AND src.name NOT LIKE 'Unknown Item %'
+                    LIMIT 1
+                )
+            WHERE name LIKE 'Unknown Item %'
+              AND EXISTS (
+                    SELECT 1 FROM items src
+                    WHERE src.defindex = items.defindex AND src.name NOT LIKE 'Unknown Item %'
+                )
+            "#,
+        )
+        .execute(pool)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
     /// Looks up an existing item's row id by its exact key, without
     /// creating one — used by `HistoryRecorder` (Module 8), which can only
     /// record price history against items the schema/inventory sync has
@@ -325,6 +363,72 @@ mod tests {
             row.image_url,
             Some("https://example.com/key.png".to_string())
         );
+
+        pool.close().await;
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn backfill_unknown_names_copies_name_and_image_from_a_resolved_permutation() {
+        let (pool, dir) = test_pool().await;
+
+        // Base-quality row, seeded (and later fixed) by schema sync.
+        let base = ItemsRepo::get_or_create(&pool, &plain_key(45), "Unknown Item 45")
+            .await
+            .unwrap();
+        ItemsRepo::set_image_url(&pool, base, "https://example.com/scattergun.png")
+            .await
+            .unwrap();
+        sqlx::query("UPDATE items SET name = ? WHERE id = ?")
+            .bind("Scattergun")
+            .bind(base)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        // Strange permutation, seeded by inventory sync before the schema
+        // ever ran, and never revisited since.
+        let strange_id = ItemsRepo::get_or_create(
+            &pool,
+            &ItemKey {
+                quality: Quality::Strange,
+                ..plain_key(45)
+            },
+            "Unknown Item 45",
+        )
+        .await
+        .unwrap();
+
+        let fixed = ItemsRepo::backfill_unknown_names(&pool).await.unwrap();
+        assert_eq!(fixed, 1);
+
+        let row = ItemsRepo::find_by_id(&pool, strange_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(row.name, "Scattergun");
+        assert_eq!(
+            row.image_url,
+            Some("https://example.com/scattergun.png".to_string())
+        );
+
+        pool.close().await;
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn backfill_unknown_names_leaves_genuinely_unresolvable_items_alone() {
+        let (pool, dir) = test_pool().await;
+
+        let id = ItemsRepo::get_or_create(&pool, &plain_key(999_999), "Unknown Item 999999")
+            .await
+            .unwrap();
+
+        let fixed = ItemsRepo::backfill_unknown_names(&pool).await.unwrap();
+        assert_eq!(fixed, 0);
+
+        let row = ItemsRepo::find_by_id(&pool, id).await.unwrap().unwrap();
+        assert_eq!(row.name, "Unknown Item 999999");
 
         pool.close().await;
         std::fs::remove_dir_all(&dir).ok();
