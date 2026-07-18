@@ -8,6 +8,7 @@ import { LiveFeed } from "../../features/live-feed/LiveFeed";
 import { MarketAnalyzer } from "../../features/market-analyzer/MarketAnalyzer";
 import { Plugins } from "../../features/plugins/Plugins";
 import { Portfolio } from "../../features/portfolio/Portfolio";
+import { Settings } from "../../features/settings/Settings";
 import { Simulator } from "../../features/simulator/Simulator";
 import { TradeAnalyzer } from "../../features/trade-analyzer/TradeAnalyzer";
 import { TradeHistory } from "../../features/trade-history/TradeHistory";
@@ -29,4 +30,5 @@ export const panelComponents: Record<PanelId, FC<IDockviewPanelProps>> = {
   "trade-history": TradeHistory,
   simulator: Simulator,
   plugins: Plugins,
+  settings: Settings,
 };

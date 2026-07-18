@@ -12,7 +12,8 @@ export type PanelId =
   | "portfolio"
   | "trade-history"
   | "simulator"
-  | "plugins";
+  | "plugins"
+  | "settings";
 
 export const PANEL_TITLES: Record<PanelId, string> = {
   backpack: "Backpack",
@@ -25,6 +26,7 @@ export const PANEL_TITLES: Record<PanelId, string> = {
   "trade-history": "Trade History",
   simulator: "Simulator",
   plugins: "Plugins",
+  settings: "Settings",
 };
 
 /**

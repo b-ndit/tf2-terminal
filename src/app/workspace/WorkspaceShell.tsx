@@ -48,6 +48,17 @@ export function WorkspaceShell({ steamId }: { steamId: string }) {
   const sync = useSyncInventory();
   const logout = useLogoutSteam();
 
+  const openSettings = useCallback(() => {
+    const api = apiRef.current;
+    if (!api) return;
+    const existing = api.getPanel("settings");
+    if (existing) {
+      existing.api.setActive();
+    } else {
+      api.addPanel({ id: "settings", component: "settings", title: PANEL_TITLES.settings });
+    }
+  }, []);
+
   const switchWorkspace = useCallback(
     (name: string) => {
       setActiveLayoutName(name);
@@ -129,6 +140,13 @@ export function WorkspaceShell({ steamId }: { steamId: string }) {
           </div>
         </div>
         <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={openSettings}
+            className="rounded bg-charcoal-raised px-3 py-1 hover:bg-charcoal-border"
+          >
+            ⚙ Settings
+          </button>
           <button
             type="button"
             onClick={() => sync.mutate()}
