@@ -77,6 +77,35 @@ fn parse_callback_query(url_path_and_query: &str) -> HashMap<String, String> {
     parsed.query_pairs().into_owned().collect()
 }
 
+/// WSL interop only forwards an environment variable to a spawned Windows
+/// process if it's listed in `WSLENV` — `open` 5.4.0's WSL code path sets
+/// `OPEN_RS_TARGET` on its `powershell.exe` child (to work around
+/// `wslview` being discontinued) but never adds it to `WSLENV` itself, so
+/// on an unconfigured WSL install `$env:OPEN_RS_TARGET` is empty inside
+/// PowerShell and `Start-Process -FilePath $env:OPEN_RS_TARGET` fails —
+/// verified live against a real WSL2 install. Appends rather than
+/// overwrites so any `WSLENV` entries the user already has keep working;
+/// a no-op everywhere outside WSL, since nothing else reads `WSLENV`.
+fn ensure_open_target_crosses_wsl_interop() {
+    const VAR: &str = "OPEN_RS_TARGET";
+    let existing = std::env::var("WSLENV").unwrap_or_default();
+    if existing
+        .split(':')
+        .any(|entry| entry.split('/').next() == Some(VAR))
+    {
+        return;
+    }
+    let updated = if existing.is_empty() {
+        VAR.to_string()
+    } else {
+        format!("{existing}:{VAR}")
+    };
+    // SAFETY: called from `login_via_browser`, which only ever runs on the
+    // single-threaded-at-this-point startup/command path — no concurrent
+    // env reads race this write in practice.
+    unsafe { std::env::set_var("WSLENV", updated) };
+}
+
 /// Runs the full Steam OpenID login flow: starts a one-shot loopback HTTP
 /// listener, opens the system browser to Steam's login page, waits for the
 /// redirect, verifies the assertion, and returns the resulting SteamID64.
@@ -95,6 +124,7 @@ pub async fn login_via_browser() -> AppResult<SteamId64> {
     let realm = format!("http://127.0.0.1:{port}/");
     let login_url = build_login_url(&return_to, &realm);
 
+    ensure_open_target_crosses_wsl_interop();
     open::that(&login_url)
         .map_err(|e| AppError::Internal(format!("failed to open system browser: {e}")))?;
 
@@ -144,6 +174,26 @@ pub async fn login_via_browser() -> AppResult<SteamId64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `WSLENV` is process-global state, so both scenarios live in one test
+    /// — `cargo test` runs tests in parallel by default, and two tests each
+    /// mutating the same env var raced and flaked when this was split.
+    #[test]
+    fn ensure_open_target_crosses_wsl_interop_sets_and_dedupes() {
+        unsafe { std::env::remove_var("WSLENV") };
+        ensure_open_target_crosses_wsl_interop();
+        assert_eq!(std::env::var("WSLENV").unwrap(), "OPEN_RS_TARGET");
+
+        unsafe { std::env::set_var("WSLENV", "FOO/p:BAR") };
+        ensure_open_target_crosses_wsl_interop();
+        assert_eq!(std::env::var("WSLENV").unwrap(), "FOO/p:BAR:OPEN_RS_TARGET");
+
+        // Calling it again shouldn't append a second time.
+        ensure_open_target_crosses_wsl_interop();
+        assert_eq!(std::env::var("WSLENV").unwrap(), "FOO/p:BAR:OPEN_RS_TARGET");
+
+        unsafe { std::env::remove_var("WSLENV") };
+    }
 
     #[test]
     fn build_login_url_includes_required_openid_params() {
