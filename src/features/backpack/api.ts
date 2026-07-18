@@ -121,4 +121,21 @@ export function useRemoveItemTag() {
   });
 }
 
+/** Synthesizes a backpack.tf classifieds URL from a backpack item, so a
+ * click can reuse `commands.analyzeClassifiedUrl` (Market Analyzer's
+ * existing paste-a-URL flow) without a new backend command — param names
+ * match `src-tauri/src/domain/classified_url.rs`'s parser exactly. */
+export function buildClassifiedUrl(item: BackpackItem): string {
+  const params = new URLSearchParams();
+  params.set("item", item.name);
+  params.set("quality", String(item.quality));
+  if (item.effect_id !== null) params.set("particle", String(item.effect_id));
+  params.set("tradable", item.tradable ? "1" : "0");
+  params.set("craftable", item.craftable ? "1" : "0");
+  params.set("australium", item.australium ? "1" : "0");
+  params.set("killstreak_tier", String(item.killstreak_tier));
+  if (item.paint_id !== null) params.set("paint", String(item.paint_id));
+  return `https://backpack.tf/classifieds?${params.toString()}`;
+}
+
 export type { BackpackItem, Tag };

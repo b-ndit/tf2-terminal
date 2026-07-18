@@ -1,5 +1,8 @@
-import type { ReactNode } from "react";
-import { useInventory } from "./api";
+import { useCallback, type ReactNode } from "react";
+import { openOrFocusPanel } from "../../app/workspace/dockviewApi";
+import { PANEL_TITLES } from "../../stores/workspaceStore";
+import { useMarketAnalyzerStore } from "../../stores/marketAnalyzerStore";
+import { buildClassifiedUrl, useInventory, type BackpackItem } from "./api";
 import { BackpackGrid } from "./BackpackGrid";
 import { ContextMenu } from "./ContextMenu";
 import { StatsBar } from "./StatsBar";
@@ -11,6 +14,15 @@ import { StatsBar } from "./StatsBar";
  */
 export function BackpackPanel() {
   const { data: items = [], isLoading, error } = useInventory();
+  const setPendingUrl = useMarketAnalyzerStore((s) => s.setPendingUrl);
+
+  const openAnalysis = useCallback(
+    (item: BackpackItem) => {
+      setPendingUrl(buildClassifiedUrl(item));
+      openOrFocusPanel("market-analyzer", PANEL_TITLES["market-analyzer"]);
+    },
+    [setPendingUrl],
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -22,7 +34,7 @@ export function BackpackPanel() {
         ) : items.length === 0 ? (
           <PanelMessage>No items synced yet. Click "Sync Inventory" to fetch your backpack.</PanelMessage>
         ) : (
-          <BackpackGrid items={items} />
+          <BackpackGrid items={items} onOpenAnalysis={openAnalysis} />
         )}
       </div>
       <ContextMenu items={items} />

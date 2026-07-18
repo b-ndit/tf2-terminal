@@ -10,6 +10,7 @@ import {
   WORKSPACE_NAMES,
   useWorkspaceStore,
 } from "../../stores/workspaceStore";
+import { openOrFocusPanel, setDockviewApi } from "./dockviewApi";
 import { panelComponents } from "./panels";
 
 const LAYOUT_SAVE_DEBOUNCE_MS = 500;
@@ -49,14 +50,7 @@ export function WorkspaceShell({ steamId }: { steamId: string }) {
   const logout = useLogoutSteam();
 
   const openSettings = useCallback(() => {
-    const api = apiRef.current;
-    if (!api) return;
-    const existing = api.getPanel("settings");
-    if (existing) {
-      existing.api.setActive();
-    } else {
-      api.addPanel({ id: "settings", component: "settings", title: PANEL_TITLES.settings });
-    }
+    openOrFocusPanel("settings", PANEL_TITLES.settings);
   }, []);
 
   const switchWorkspace = useCallback(
@@ -72,6 +66,7 @@ export function WorkspaceShell({ steamId }: { steamId: string }) {
   const onReady = useCallback(
     (event: DockviewReadyEvent) => {
       apiRef.current = event.api;
+      setDockviewApi(event.api);
       loadLayout(event.api, activeLayoutName);
       event.api.onDidLayoutChange(() => {
         if (saveTimer.current) {
@@ -87,6 +82,8 @@ export function WorkspaceShell({ steamId }: { steamId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
+
+  useEffect(() => () => setDockviewApi(null), []);
 
   // `1`-`9` workspace switch (docs/DESIGN.md §9), ignored while typing.
   useEffect(() => {

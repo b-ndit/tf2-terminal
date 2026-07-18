@@ -9,9 +9,10 @@ interface ItemTileProps {
   style: CSSProperties;
   onSelect: (assetId: string, additive: boolean) => void;
   onContextMenu: (assetId: string, x: number, y: number) => void;
+  onOpenAnalysis: (item: BackpackItem) => void;
 }
 
-export function ItemTile({ item, isSelected, style, onSelect, onContextMenu }: ItemTileProps) {
+export function ItemTile({ item, isSelected, style, onSelect, onContextMenu, onOpenAnalysis }: ItemTileProps) {
   const borderColor = qualityColor(item.quality);
   const hasEffect = item.effect_id !== null;
   const hasKillstreak = item.killstreak_tier > 0;
@@ -19,7 +20,14 @@ export function ItemTile({ item, isSelected, style, onSelect, onContextMenu }: I
   const showImage = Boolean(item.image_url) && !imageFailed;
 
   function handleClick(e: MouseEvent) {
-    onSelect(item.asset_id, e.ctrlKey || e.metaKey);
+    const additive = e.ctrlKey || e.metaKey;
+    onSelect(item.asset_id, additive);
+    // A ctrl/cmd-click is bulk-selecting for a context-menu action, not
+    // asking to inspect this one item — only open analysis on a plain
+    // click.
+    if (!additive) {
+      onOpenAnalysis(item);
+    }
   }
 
   function handleContextMenu(e: MouseEvent) {

@@ -11,6 +11,7 @@ interface CellProps {
   selected: Set<string>;
   onSelect: (assetId: string, additive: boolean) => void;
   onContextMenu: (assetId: string, x: number, y: number) => void;
+  onOpenAnalysis: (item: BackpackItem) => void;
 }
 
 function Cell({
@@ -22,6 +23,7 @@ function Cell({
   selected,
   onSelect,
   onContextMenu,
+  onOpenAnalysis,
 }: CellComponentProps<CellProps>) {
   const index = rowIndex * columnCount + columnIndex;
   const item = items[index];
@@ -35,15 +37,17 @@ function Cell({
       style={style}
       onSelect={onSelect}
       onContextMenu={onContextMenu}
+      onOpenAnalysis={onOpenAnalysis}
     />
   );
 }
 
 interface BackpackGridProps {
   items: BackpackItem[];
+  onOpenAnalysis: (item: BackpackItem) => void;
 }
 
-export function BackpackGrid({ items }: BackpackGridProps) {
+export function BackpackGrid({ items, onOpenAnalysis }: BackpackGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
 
@@ -74,8 +78,9 @@ export function BackpackGrid({ items }: BackpackGridProps) {
       selected,
       onSelect: selectItem,
       onContextMenu: (assetId: string, x: number, y: number) => openContextMenu({ assetId, x, y }),
+      onOpenAnalysis,
     }),
-    [items, columnCount, selected, selectItem, openContextMenu],
+    [items, columnCount, selected, selectItem, openContextMenu, onOpenAnalysis],
   );
 
   return (

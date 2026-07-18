@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useMarketAnalyzerStore } from "../../stores/marketAnalyzerStore";
 import { qualityColor, qualityName } from "../backpack/quality";
 import { useAnalyzeClassifiedUrl } from "./api";
 import type { ItemAnalytics } from "./api";
@@ -27,14 +28,31 @@ export function MarketAnalyzer() {
   const [url, setUrl] = useState("");
   const [analyzedUrl, setAnalyzedUrl] = useState<string | null>(null);
   const analyze = useAnalyzeClassifiedUrl();
+  const pendingUrl = useMarketAnalyzerStore((s) => s.pendingUrl);
+  const consumePendingUrl = useMarketAnalyzerStore((s) => s.consumePendingUrl);
+
+  function analyzeUrl(target: string) {
+    analyze.mutate(target, { onSuccess: () => setAnalyzedUrl(target) });
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = url.trim();
     if (trimmed) {
-      analyze.mutate(trimmed, { onSuccess: () => setAnalyzedUrl(trimmed) });
+      analyzeUrl(trimmed);
     }
   }
+
+  // Set when a backpack item tile is clicked (BackpackPanel) — auto-runs
+  // the analysis for that item instead of requiring a pasted URL.
+  useEffect(() => {
+    if (!pendingUrl) return;
+    const target = consumePendingUrl();
+    if (!target) return;
+    setUrl(target);
+    analyzeUrl(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingUrl]);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-charcoal p-4 text-fg">
