@@ -159,7 +159,10 @@ impl SteamSessionClient {
         let response = self
             .http
             .post(new_offer_url())
-            .header(reqwest::header::COOKIE, cookie_header(session_id, login_secure))
+            .header(
+                reqwest::header::COOKIE,
+                cookie_header(session_id, login_secure),
+            )
             .header(reqwest::header::REFERER, referer)
             .form(&[
                 ("sessionid", session_id),
@@ -184,9 +187,9 @@ impl SteamSessionClient {
                 "Steam rejected the trade offer: {err}"
             )));
         }
-        let tradeofferid = parsed
-            .tradeofferid
-            .ok_or_else(|| AppError::Network("Steam did not return a trade offer id".to_string()))?;
+        let tradeofferid = parsed.tradeofferid.ok_or_else(|| {
+            AppError::Network("Steam did not return a trade offer id".to_string())
+        })?;
         tradeofferid
             .parse::<u64>()
             .map_err(|e| AppError::Network(format!("invalid trade offer id from Steam: {e}")))
@@ -208,7 +211,10 @@ impl SteamSessionClient {
         let response = self
             .http
             .post(accept_url(trade_offer_id))
-            .header(reqwest::header::COOKIE, cookie_header(session_id, login_secure))
+            .header(
+                reqwest::header::COOKIE,
+                cookie_header(session_id, login_secure),
+            )
             .header(reqwest::header::REFERER, referer)
             .form(&[
                 ("sessionid", session_id),
@@ -237,7 +243,10 @@ impl SteamSessionClient {
         let response = self
             .http
             .post(decline_url(trade_offer_id))
-            .header(reqwest::header::COOKIE, cookie_header(session_id, login_secure))
+            .header(
+                reqwest::header::COOKIE,
+                cookie_header(session_id, login_secure),
+            )
             .header(reqwest::header::REFERER, referer)
             .form(&[("sessionid", session_id)])
             .send()
@@ -258,7 +267,9 @@ impl SteamSessionClient {
         }
         if let Ok(parsed) = serde_json::from_str::<GenericSteamResponse>(&body) {
             if let Some(err) = parsed.str_error {
-                return Err(AppError::Network(format!("Steam rejected the request: {err}")));
+                return Err(AppError::Network(format!(
+                    "Steam rejected the request: {err}"
+                )));
             }
         }
         Ok(())
@@ -311,16 +322,14 @@ mod tests {
     fn send_offer_response_parses_success() {
         let body = r#"{"tradeofferid": "6234567890123456789"}"#;
         let parsed: SendOfferResponse = serde_json::from_str(body).unwrap();
-        assert_eq!(
-            parsed.tradeofferid,
-            Some("6234567890123456789".to_string())
-        );
+        assert_eq!(parsed.tradeofferid, Some("6234567890123456789".to_string()));
         assert_eq!(parsed.str_error, None);
     }
 
     #[test]
     fn send_offer_response_parses_steam_error() {
-        let body = r#"{"success": false, "strError": "There was an error sending your trade offer."}"#;
+        let body =
+            r#"{"success": false, "strError": "There was an error sending your trade offer."}"#;
         let parsed: SendOfferResponse = serde_json::from_str(body).unwrap();
         assert_eq!(parsed.tradeofferid, None);
         assert_eq!(

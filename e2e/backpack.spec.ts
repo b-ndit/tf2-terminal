@@ -45,6 +45,9 @@ test("ctrl-click selects multiple tiles for bulk context menu actions", async ({
   await page.goto("/");
   const tiles = page.getByTestId("item-tile");
   await tiles.nth(0).click();
+  // A plain click now also opens the Item Detail modal (Module 16) — close
+  // it before continuing so its backdrop doesn't intercept the next click.
+  await page.keyboard.press("Escape");
   await tiles.nth(1).click({ modifiers: ["Control"] });
   await tiles.nth(0).click({ button: "right" });
   await expect(page.getByText(/items selected/)).toBeVisible();

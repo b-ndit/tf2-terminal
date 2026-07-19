@@ -151,7 +151,10 @@ mod tests {
 
     #[test]
     fn parse_decimal_rejects_out_of_range_id() {
-        assert_eq!(SteamId64::parse_decimal("12345"), Err(SteamIdError::OutOfRange(12345)));
+        assert_eq!(
+            SteamId64::parse_decimal("12345"),
+            Err(SteamIdError::OutOfRange(12345))
+        );
     }
 
     #[test]

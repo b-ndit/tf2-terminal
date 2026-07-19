@@ -175,7 +175,8 @@ impl InventoryRepo {
         // Safe: the only dynamic part is the placeholder *count*, derived
         // from asset_ids.len(), not any interpolated data (same pattern as
         // find_by_asset_ids/remove_by_asset_ids above).
-        let mut query = sqlx::query_as::<_, InventoryItemView>(sqlx::AssertSqlSafe(sql)).bind(steam_id);
+        let mut query =
+            sqlx::query_as::<_, InventoryItemView>(sqlx::AssertSqlSafe(sql)).bind(steam_id);
         for id in asset_ids {
             query = query.bind(id);
         }

@@ -92,7 +92,10 @@ pub async fn accept_trade_offer(
 /// Declines an already-active offer the user received.
 #[tauri::command]
 #[specta::specta]
-pub async fn decline_trade_offer(state: State<'_, AppState>, trade_offer_id: String) -> AppResult<()> {
+pub async fn decline_trade_offer(
+    state: State<'_, AppState>,
+    trade_offer_id: String,
+) -> AppResult<()> {
     let (session_id, login_secure) = steam_session_cookies()?;
     let trade_offer_id = parse_trade_offer_id(&trade_offer_id)?;
 

@@ -281,7 +281,9 @@ fn unresolved() -> (ValuedItem, TradeItemView) {
 /// Builds the domain `ItemKey` for an already-resolved inventory row —
 /// same fields `ItemRow::key()` derives from the catalog side, just
 /// sourced from the joined inventory+item view instead.
-fn item_key_from_inventory_view(row: &InventoryItemView) -> Result<ItemKey, crate::domain::item::ItemError> {
+fn item_key_from_inventory_view(
+    row: &InventoryItemView,
+) -> Result<ItemKey, crate::domain::item::ItemError> {
     Ok(ItemKey {
         defindex: row.defindex as u32,
         quality: Quality::try_from(row.quality as u8)?,
@@ -335,7 +337,10 @@ async fn value_given_side(
             paint_id: inv_item.paint_id.map(|v| v as i32),
             craft_number: inv_item.craft_number.map(|v| v as i32),
             strange_count: inv_item.strange_count.map(|v| v as i32),
-            image_url: valuation.image_url.clone().or_else(|| inv_item.image_url.clone()),
+            image_url: valuation
+                .image_url
+                .clone()
+                .or_else(|| inv_item.image_url.clone()),
         });
         items.push(to_valued_item(valuation));
     }
