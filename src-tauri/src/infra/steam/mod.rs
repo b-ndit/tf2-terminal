@@ -2,6 +2,7 @@ pub mod auth;
 pub mod inventory;
 pub mod schema;
 pub mod trade_offers;
+pub mod trade_send;
 
 use std::num::NonZeroU32;
 use std::sync::Arc;

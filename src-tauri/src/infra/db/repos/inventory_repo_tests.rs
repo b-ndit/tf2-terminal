@@ -325,3 +325,63 @@ async fn find_by_asset_ids_returns_empty_for_empty_slice() {
     pool.close().await;
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[tokio::test]
+async fn find_view_by_asset_ids_joins_full_item_detail_for_only_requested_ids() {
+    let (pool, dir) = test_pool().await;
+    let item_id = seed_item(&pool).await;
+    ItemsRepo::set_image_url(&pool, item_id, "https://example.com/key.png")
+        .await
+        .unwrap();
+
+    for (asset_id, steam_id) in [("a", "sid1"), ("b", "sid1"), ("c", "sid2")] {
+        InventoryRepo::upsert(
+            &pool,
+            &UpsertInventoryItem {
+                asset_id,
+                item_id,
+                steam_id,
+                craft_number: Some(42),
+                paint_id: None,
+                strange_count: None,
+                tradable: true,
+                marketable: None,
+                last_seen_ts: 1000,
+                raw_json: "{}",
+            },
+        )
+        .await
+        .unwrap();
+    }
+
+    let found = InventoryRepo::find_view_by_asset_ids(
+        &pool,
+        "sid1",
+        &["a".to_string(), "c".to_string(), "missing".to_string()],
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].asset_id, "a");
+    assert_eq!(found[0].name, "Mann Co. Supply Crate Key");
+    assert_eq!(found[0].craft_number, Some(42));
+    assert_eq!(
+        found[0].image_url,
+        Some("https://example.com/key.png".to_string())
+    );
+
+    pool.close().await;
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[tokio::test]
+async fn find_view_by_asset_ids_returns_empty_for_empty_slice() {
+    let (pool, dir) = test_pool().await;
+    let found = InventoryRepo::find_view_by_asset_ids(&pool, "sid1", &[])
+        .await
+        .unwrap();
+    assert!(found.is_empty());
+    pool.close().await;
+    std::fs::remove_dir_all(&dir).ok();
+}

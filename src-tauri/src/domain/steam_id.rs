@@ -14,6 +14,8 @@ pub enum SteamIdError {
     OutOfRange(u64),
     #[error("could not find a SteamID64 in claimed_id '{0}'")]
     UnparseableClaimedId(String),
+    #[error("'{0}' is not a valid decimal SteamID64")]
+    InvalidDecimal(String),
 }
 
 /// A validated SteamID64. Public/non-secret — this is an identifier, not a
@@ -72,6 +74,24 @@ impl SteamId64 {
         Self(MIN_INDIVIDUAL_STEAM_ID64 + account_id as u64)
     }
 
+    /// The inverse of `from_account_id` — the 32-bit account id Steam's
+    /// trade-offer endpoints expect in their `partner` form field
+    /// alongside the full SteamID64 (`infra::steam::trade_send`).
+    pub fn account_id(&self) -> u32 {
+        (self.0 - MIN_INDIVIDUAL_STEAM_ID64) as u32
+    }
+
+    /// Parses a plain decimal SteamID64 string, e.g. one round-tripped
+    /// through the frontend as a trade offer's `partner_steam_id`
+    /// (`commands::trades`) — this is the same textual form `Display`
+    /// produces, not a URL like `parse_claimed_id` handles.
+    pub fn parse_decimal(raw: &str) -> Result<Self, SteamIdError> {
+        let id: u64 = raw
+            .parse()
+            .map_err(|_| SteamIdError::InvalidDecimal(raw.to_string()))?;
+        Self::new(id)
+    }
+
     /// Parses the trailing numeric segment out of an OpenID `claimed_id`
     /// URL, e.g. `"https://steamcommunity.com/openid/id/76561198000000000"`.
     pub fn parse_claimed_id(claimed_id: &str) -> Result<Self, SteamIdError> {
@@ -107,6 +127,31 @@ mod tests {
     fn from_account_id_builds_a_valid_individual_id() {
         let id = SteamId64::from_account_id(39_827_271);
         assert_eq!(id.as_u64(), MIN_INDIVIDUAL_STEAM_ID64 + 39_827_271);
+    }
+
+    #[test]
+    fn account_id_round_trips_through_from_account_id() {
+        let id = SteamId64::from_account_id(39_827_271);
+        assert_eq!(id.account_id(), 39_827_271);
+    }
+
+    #[test]
+    fn parse_decimal_accepts_a_plain_id_string() {
+        let id = SteamId64::parse_decimal("76561198000000000").unwrap();
+        assert_eq!(id.as_u64(), 76_561_198_000_000_000);
+    }
+
+    #[test]
+    fn parse_decimal_rejects_non_numeric_input() {
+        assert_eq!(
+            SteamId64::parse_decimal("not-a-number"),
+            Err(SteamIdError::InvalidDecimal("not-a-number".to_string()))
+        );
+    }
+
+    #[test]
+    fn parse_decimal_rejects_out_of_range_id() {
+        assert_eq!(SteamId64::parse_decimal("12345"), Err(SteamIdError::OutOfRange(12345)));
     }
 
     #[test]

@@ -84,3 +84,29 @@ pub fn has_discord_webhook_url() -> AppResult<bool> {
 pub fn clear_discord_webhook_url() -> AppResult<()> {
     Keychain::delete(keys::DISCORD_WEBHOOK_URL)
 }
+
+/// Both cookies are required together — a `sessionid` without a matching
+/// `steamLoginSecure` (or vice versa) can't authenticate anything, so
+/// there's no useful "half set" state to support here.
+#[tauri::command]
+#[specta::specta]
+pub fn set_steam_session(session_id: String, login_secure: String) -> AppResult<()> {
+    Keychain::set(keys::STEAM_SESSION_ID, &session_id)?;
+    Keychain::set(keys::STEAM_LOGIN_SECURE, &login_secure)?;
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn has_steam_session() -> AppResult<bool> {
+    Ok(Keychain::get(keys::STEAM_SESSION_ID)?.is_some()
+        && Keychain::get(keys::STEAM_LOGIN_SECURE)?.is_some())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn clear_steam_session() -> AppResult<()> {
+    Keychain::delete(keys::STEAM_SESSION_ID)?;
+    Keychain::delete(keys::STEAM_LOGIN_SECURE)?;
+    Ok(())
+}

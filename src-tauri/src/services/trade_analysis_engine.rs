@@ -16,11 +16,11 @@ use sqlx::SqlitePool;
 
 use crate::app::AppState;
 use crate::domain::currency::{Currency, KeyRate};
+use crate::domain::item::{ItemKey, KillstreakTier, Quality};
 use crate::domain::steam_id::SteamId64;
 use crate::domain::trade_rating::{rate_trade, TradeSide, ValuedItem};
 use crate::error::{AppError, AppResult};
-use crate::infra::db::repos::inventory_repo::InventoryRepo;
-use crate::infra::db::repos::items_repo::ItemsRepo;
+use crate::infra::db::repos::inventory_repo::{InventoryItemView, InventoryRepo};
 use crate::infra::db::repos::kv_cache_repo::KvCacheRepo;
 use crate::infra::db::repos::price_history_repo::PricePointsRepo;
 use crate::infra::keychain::{keys, Keychain};
@@ -52,6 +52,27 @@ pub struct TradeItemView {
     /// frontend should render this distinctly from a legitimately
     /// zero-value item.
     pub estimated_ref: Option<f64>,
+    /// The remaining fields are for display only (icon, quality color,
+    /// badges in the Item Detail modal) — `rate_trade` never reads them,
+    /// only `estimated_ref`. All `None` for an unresolved item.
+    pub asset_id: Option<String>,
+    pub quality: Option<u8>,
+    pub effect_id: Option<u32>,
+    pub killstreak_tier: Option<u8>,
+    pub australium: Option<bool>,
+    pub festivized: Option<bool>,
+    /// Per-asset attributes — populated on the "given" side from the
+    /// user's own synced inventory and on the "received" side from the
+    /// partner's live `TF2Item` attributes; unlike the fields above, these
+    /// aren't part of `ItemKey` so they can't be recovered from the
+    /// catalog `items` row alone. `i32` (not the `i64` the underlying
+    /// storage/attribute decoding uses) — Specta forbids `i64` in
+    /// TS-exported types (silent precision-loss risk); same conversion
+    /// `BackpackItem` already applies (`services::backpack_service`).
+    pub paint_id: Option<i32>,
+    pub craft_number: Option<i32>,
+    pub strange_count: Option<i32>,
+    pub image_url: Option<String>,
 }
 
 /// What Module 12 actually needs from a resolved offer, cached under
@@ -117,11 +138,11 @@ pub async fn get_active_trades(state: &AppState) -> AppResult<Vec<AnalyzedTradeO
         .iter()
         .flat_map(|o| o.items_to_give.iter().map(|a| a.assetid.clone()))
         .collect();
-    let my_item_ids: HashMap<String, i64> =
-        InventoryRepo::find_by_asset_ids(&state.db, &my_steam_id_str, &all_given_asset_ids)
+    let my_items: HashMap<String, InventoryItemView> =
+        InventoryRepo::find_view_by_asset_ids(&state.db, &my_steam_id_str, &all_given_asset_ids)
             .await?
             .into_iter()
-            .map(|row| (row.asset_id, row.item_id))
+            .map(|row| (row.asset_id.clone(), row))
             .collect();
 
     let mut results = Vec::with_capacity(offers.len());
@@ -131,7 +152,7 @@ pub async fn get_active_trades(state: &AppState) -> AppResult<Vec<AnalyzedTradeO
             fetch_partner_items_cached(&state.db, &state.steam_api, &api_key, partner_steam_id)
                 .await;
 
-        let given = value_given_side(&state.db, &my_item_ids, &offer.items_to_give, now_ts).await?;
+        let given = value_given_side(&state.db, &my_items, &offer.items_to_give, now_ts).await?;
         let received = value_received_side(
             &state.db,
             partner_items.as_ref(),
@@ -243,8 +264,33 @@ fn unresolved() -> (ValuedItem, TradeItemView) {
         TradeItemView {
             name,
             estimated_ref: None,
+            asset_id: None,
+            quality: None,
+            effect_id: None,
+            killstreak_tier: None,
+            australium: None,
+            festivized: None,
+            paint_id: None,
+            craft_number: None,
+            strange_count: None,
+            image_url: None,
         },
     )
+}
+
+/// Builds the domain `ItemKey` for an already-resolved inventory row —
+/// same fields `ItemRow::key()` derives from the catalog side, just
+/// sourced from the joined inventory+item view instead.
+fn item_key_from_inventory_view(row: &InventoryItemView) -> Result<ItemKey, crate::domain::item::ItemError> {
+    Ok(ItemKey {
+        defindex: row.defindex as u32,
+        quality: Quality::try_from(row.quality as u8)?,
+        effect_id: row.effect_id.map(|e| e as u32),
+        killstreak_tier: KillstreakTier::try_from(row.killstreak_tier as u8)?,
+        australium: row.australium,
+        festivized: row.festivized,
+        craftable: row.craftable,
+    })
 }
 
 /// Values the user's own side of a trade against the already-synced
@@ -255,7 +301,7 @@ fn unresolved() -> (ValuedItem, TradeItemView) {
 /// since) is reported unpriced rather than triggering a fresh fetch.
 async fn value_given_side(
     pool: &SqlitePool,
-    my_item_ids: &HashMap<String, i64>,
+    my_items: &HashMap<String, InventoryItemView>,
     assets: &[TradeOfferAsset],
     now_ts: i64,
 ) -> AppResult<SideValuation> {
@@ -263,29 +309,33 @@ async fn value_given_side(
     let mut views = Vec::with_capacity(assets.len());
 
     for asset in assets {
-        let Some(&item_id) = my_item_ids.get(&asset.assetid) else {
+        let Some(inv_item) = my_items.get(&asset.assetid) else {
             let (item, view) = unresolved();
             items.push(item);
             views.push(view);
             continue;
         };
-        let Some(row) = ItemsRepo::find_by_id(pool, item_id).await? else {
-            let (item, view) = unresolved();
-            items.push(item);
-            views.push(view);
-            continue;
-        };
-        let Ok(key) = row.key() else {
+        let Ok(key) = item_key_from_inventory_view(inv_item) else {
             let (item, view) = unresolved();
             items.push(item);
             views.push(view);
             continue;
         };
 
-        let valuation = value_item_key(pool, &key, &row.name, now_ts).await?;
+        let valuation = value_item_key(pool, &key, &inv_item.name, now_ts).await?;
         views.push(TradeItemView {
             name: valuation.name.clone(),
             estimated_ref: valuation.estimated_ref,
+            asset_id: Some(inv_item.asset_id.clone()),
+            quality: Some(inv_item.quality as u8),
+            effect_id: inv_item.effect_id.map(|e| e as u32),
+            killstreak_tier: Some(inv_item.killstreak_tier as u8),
+            australium: Some(inv_item.australium),
+            festivized: Some(inv_item.festivized),
+            paint_id: inv_item.paint_id.map(|v| v as i32),
+            craft_number: inv_item.craft_number.map(|v| v as i32),
+            strange_count: inv_item.strange_count.map(|v| v as i32),
+            image_url: valuation.image_url.clone().or_else(|| inv_item.image_url.clone()),
         });
         items.push(to_valued_item(valuation));
     }
@@ -330,6 +380,16 @@ async fn value_received_side(
         views.push(TradeItemView {
             name: valuation.name.clone(),
             estimated_ref: valuation.estimated_ref,
+            asset_id: Some(tf2_item.id.to_string()),
+            quality: Some(tf2_item.quality),
+            effect_id: tf2_item.effect_id(),
+            killstreak_tier: Some(tf2_item.killstreak_tier().into()),
+            australium: Some(tf2_item.is_australium()),
+            festivized: Some(tf2_item.is_festivized()),
+            paint_id: tf2_item.paint_rgb().map(|v| v as i32),
+            craft_number: tf2_item.craft_number().map(|v| v as i32),
+            strange_count: tf2_item.strange_count().map(|v| v as i32),
+            image_url: valuation.image_url.clone(),
         });
         items.push(to_valued_item(valuation));
     }

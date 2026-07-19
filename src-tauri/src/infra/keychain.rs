@@ -105,6 +105,14 @@ pub mod keys {
     pub const STEAM_API_KEY: &str = "steam_api_key";
     pub const BACKPACK_TF_TOKEN: &str = "backpack_tf_token";
     pub const DISCORD_WEBHOOK_URL: &str = "discord_webhook_url";
+    /// Steam's `sessionid` cookie — pasted in by the user from their own
+    /// logged-in browser session (Settings). Needed alongside
+    /// `STEAM_LOGIN_SECURE` to call Steam's unofficial trade-offer
+    /// send/accept/decline endpoints, which require a real browser session
+    /// rather than a Web API key.
+    pub const STEAM_SESSION_ID: &str = "steam_session_id";
+    /// Steam's `steamLoginSecure` cookie — see `STEAM_SESSION_ID`.
+    pub const STEAM_LOGIN_SECURE: &str = "steam_login_secure";
 }
 
 #[cfg(test)]

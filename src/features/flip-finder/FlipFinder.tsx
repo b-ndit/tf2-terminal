@@ -6,6 +6,8 @@ import {
   useWatchlist,
 } from "./api";
 import type { FlipOpportunityView } from "./api";
+import { ItemIcon } from "../backpack/ItemIcon";
+import { qualityColor } from "../backpack/quality";
 
 // Specta exports Rust's `f64` as `number | null` even for fields that are
 // effectively always present at runtime (see the same note in
@@ -172,7 +174,10 @@ function OpportunityRow({ opportunity }: { opportunity: FlipOpportunityView }) {
     <tr className="border-b border-charcoal-border last:border-0">
       <td className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="font-medium">{opportunity.item_name}</span>
+          <ItemIcon imageUrl={opportunity.image_url} alt={opportunity.item_name} size="h-6 w-6" />
+          <span className="font-medium" style={{ color: qualityColor(opportunity.quality) }}>
+            {opportunity.item_name}
+          </span>
           {opportunity.is_watched && <Badge label="Watched" colorClass="bg-sky-950/60 text-sky-300" />}
           {opportunity.is_high_volume && <Badge label="High Volume" colorClass="bg-emerald-950/60 text-emerald-300" />}
           {opportunity.is_mover && <Badge label="Mover" colorClass="bg-amber-950/60 text-amber-300" />}

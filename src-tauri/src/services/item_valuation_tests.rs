@@ -94,6 +94,27 @@ async fn value_item_key_computes_price_liquidity_and_demand() {
 }
 
 #[tokio::test]
+async fn value_item_key_surfaces_the_schema_icon_when_set() {
+    let (pool, dir) = test_pool().await;
+    let key = plain_key(5021);
+    let item_id = ItemsRepo::get_or_create(&pool, &key, "Mann Co. Supply Crate Key")
+        .await
+        .unwrap();
+    ItemsRepo::set_image_url(&pool, item_id, "https://example.com/key.png")
+        .await
+        .unwrap();
+
+    let valuation = value_item_key(&pool, &key, "fallback", 1000).await.unwrap();
+    assert_eq!(
+        valuation.image_url,
+        Some("https://example.com/key.png".to_string())
+    );
+
+    pool.close().await;
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[tokio::test]
 async fn value_item_key_uses_fallback_name_and_is_unpriced_when_unknown() {
     let (pool, dir) = test_pool().await;
     let key = plain_key(999_999);
@@ -107,6 +128,7 @@ async fn value_item_key_uses_fallback_name_and_is_unpriced_when_unknown() {
     assert_eq!(valuation.quicksell_ref, None);
     assert_eq!(valuation.history_days, 0);
     assert_eq!(valuation.avg_sell_listing_age_hours, None);
+    assert_eq!(valuation.image_url, None);
 
     pool.close().await;
     std::fs::remove_dir_all(&dir).ok();

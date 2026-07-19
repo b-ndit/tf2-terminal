@@ -62,3 +62,29 @@ export function useSyncItemSchema() {
     mutationFn: () => unwrap(commands.syncItemSchema()),
   });
 }
+
+const STEAM_SESSION_KEY = ["settings", "has-steam-session"];
+
+export function useHasSteamSession() {
+  return useQuery({
+    queryKey: STEAM_SESSION_KEY,
+    queryFn: () => unwrap(commands.hasSteamSession()),
+  });
+}
+
+export function useSetSteamSession() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, loginSecure }: { sessionId: string; loginSecure: string }) =>
+      unwrap(commands.setSteamSession(sessionId, loginSecure)),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: STEAM_SESSION_KEY }),
+  });
+}
+
+export function useClearSteamSession() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => unwrap(commands.clearSteamSession()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: STEAM_SESSION_KEY }),
+  });
+}

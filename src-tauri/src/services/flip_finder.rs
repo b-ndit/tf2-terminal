@@ -39,6 +39,14 @@ const D7_MOVER_THRESHOLD_PCT: f64 = 20.0;
 #[derive(Debug, Clone, Serialize, Type)]
 pub struct FlipOpportunityView {
     pub item_name: String,
+    /// Display-only — same catalog-level fields `ItemTile`/`ItemIcon`
+    /// already key off of. Flip candidates are defindex+quality-level
+    /// (`ItemKey`), not a specific owned asset, so there's no paint/craft
+    /// number/strange count here the way there is for an inventory item.
+    pub quality: u8,
+    pub effect_id: Option<u32>,
+    pub killstreak_tier: u8,
+    pub image_url: Option<String>,
     pub buy_price_ref: f64,
     pub sell_price_ref: f64,
     pub quicksell_ref: Option<f64>,
@@ -137,6 +145,10 @@ pub async fn scan(
 
         opportunities.push(FlipOpportunityView {
             item_name: valuation.name,
+            quality: key.quality as u8,
+            effect_id: key.effect_id,
+            killstreak_tier: key.killstreak_tier as u8,
+            image_url: valuation.image_url.clone(),
             buy_price_ref,
             sell_price_ref,
             quicksell_ref: valuation.quicksell_ref,

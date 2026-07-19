@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useSetTradeNotes, useSetTradeRating, useSyncCompletedTrades, useTrades } from "./api";
 import type { TradeLedgerView } from "./api";
 import { ExportMenu } from "../export/ExportMenu";
+import { ItemIcon } from "../backpack/ItemIcon";
+import { qualityColor } from "../backpack/quality";
 
 const STARS_MAX = 5;
 
@@ -140,8 +142,14 @@ function ItemList({ title, items }: { title: string; items: TradeLedgerView["giv
       ) : (
         <ul className="divide-y divide-charcoal-border">
           {items.map((item, index) => (
-            <li key={`${item.name}-${index}`} className="flex items-center justify-between px-2 py-1 text-xs">
-              <span className={item.value_ref === null ? "italic text-fg-subtle" : "text-fg"}>{item.name}</span>
+            <li key={`${item.name}-${index}`} className="flex items-center gap-1.5 px-2 py-1 text-xs">
+              <ItemIcon imageUrl={item.image_url} alt={item.name} size="h-5 w-5" />
+              <span
+                className={`flex-1 ${item.value_ref === null ? "italic text-fg-subtle" : "text-fg"}`}
+                style={item.quality !== null ? { color: qualityColor(item.quality) } : undefined}
+              >
+                {item.name}
+              </span>
               <span className="text-fg-muted">{item.value_ref === null ? "—" : `${item.value_ref.toFixed(2)} ref`}</span>
             </li>
           ))}

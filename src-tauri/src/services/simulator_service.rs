@@ -87,6 +87,16 @@ fn unresolved() -> (ValuedItem, TradeItemView) {
         TradeItemView {
             name,
             estimated_ref: None,
+            asset_id: None,
+            quality: None,
+            effect_id: None,
+            killstreak_tier: None,
+            australium: None,
+            festivized: None,
+            paint_id: None,
+            craft_number: None,
+            strange_count: None,
+            image_url: None,
         },
     )
 }
@@ -145,6 +155,16 @@ async fn value_given_side(
         views.push(TradeItemView {
             name: valuation.name.clone(),
             estimated_ref: valuation.estimated_ref,
+            asset_id: Some(asset_id.clone()),
+            quality: Some(key.quality as u8),
+            effect_id: key.effect_id,
+            killstreak_tier: Some(key.killstreak_tier as u8),
+            australium: Some(key.australium),
+            festivized: Some(key.festivized),
+            paint_id: None,
+            craft_number: None,
+            strange_count: None,
+            image_url: valuation.image_url.clone(),
         });
         items.push(to_valued_item(valuation));
     }
@@ -178,6 +198,16 @@ async fn value_received_side(
         views.push(TradeItemView {
             name: valuation.name.clone(),
             estimated_ref: valuation.estimated_ref,
+            asset_id: None,
+            quality: Some(key.quality as u8),
+            effect_id: key.effect_id,
+            killstreak_tier: Some(key.killstreak_tier as u8),
+            australium: Some(key.australium),
+            festivized: Some(key.festivized),
+            paint_id: None,
+            craft_number: None,
+            strange_count: None,
+            image_url: valuation.image_url.clone(),
         });
         items.push(to_valued_item(valuation));
     }

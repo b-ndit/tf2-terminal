@@ -16,6 +16,14 @@ export const commands = {
 	setDiscordWebhookUrl: (url: string) => typedError<null, AppError>(__TAURI_INVOKE("set_discord_webhook_url", { url })),
 	hasDiscordWebhookUrl: () => typedError<boolean, AppError>(__TAURI_INVOKE("has_discord_webhook_url")),
 	clearDiscordWebhookUrl: () => typedError<null, AppError>(__TAURI_INVOKE("clear_discord_webhook_url")),
+	/**
+	 *  Both cookies are required together — a `sessionid` without a matching
+	 *  `steamLoginSecure` (or vice versa) can't authenticate anything, so
+	 *  there's no useful "half set" state to support here.
+	 */
+	setSteamSession: (sessionId: string, loginSecure: string) => typedError<null, AppError>(__TAURI_INVOKE("set_steam_session", { sessionId, loginSecure })),
+	hasSteamSession: () => typedError<boolean, AppError>(__TAURI_INVOKE("has_steam_session")),
+	clearSteamSession: () => typedError<null, AppError>(__TAURI_INVOKE("clear_steam_session")),
 	syncItemSchema: () => typedError<SchemaSyncSummary, AppError>(__TAURI_INVOKE("sync_item_schema")),
 	/**
 	 *  Runs the Steam OpenID login flow (system browser) and persists the
@@ -69,6 +77,30 @@ export const commands = {
 	 *  Module 9 note in `services::trade_analysis_engine`).
 	 */
 	getActiveTrades: () => typedError<AnalyzedTradeOffer[], AppError>(__TAURI_INVOKE("get_active_trades")),
+	/**
+	 *  Sends a brand-new trade offer to `partner_steam_id`, giving
+	 *  `my_asset_ids` and asking for `their_asset_ids` (both plain Steam asset
+	 *  id strings). Requires a connected Steam session (Settings) — this is
+	 *  Steam's unofficial `tradeoffer/new/send` endpoint, not the read-only
+	 *  `IEconService` Web API `get_active_trades` uses.
+	 */
+	sendTradeOffer: (partnerSteamId: string, myAssetIds: string[], theirAssetIds: string[], message: string) => typedError<string, AppError>(__TAURI_INVOKE("send_trade_offer", { partnerSteamId, myAssetIds, theirAssetIds, message })),
+	/**
+	 *  Accepts an already-active offer the user received. Same unofficial
+	 *  session-cookie auth as `send_trade_offer` — Steam's official
+	 *  `IEconService` has no accept endpoint at all.
+	 */
+	acceptTradeOffer: (tradeOfferId: string, partnerSteamId: string) => typedError<null, AppError>(__TAURI_INVOKE("accept_trade_offer", { tradeOfferId, partnerSteamId })),
+	/**
+	 *  Declines an already-active offer the user received.
+	 */
+	declineTradeOffer: (tradeOfferId: string) => typedError<null, AppError>(__TAURI_INVOKE("decline_trade_offer", { tradeOfferId })),
+	/**
+	 *  Read-only: another Steam account's public TF2 inventory, for the
+	 *  "propose a trade" item picker (needs only the Steam API key, same as
+	 *  any other `GetPlayerItems` call — no session cookies involved).
+	 */
+	getPublicInventory: (partnerSteamId: string) => typedError<PartnerItemView[], AppError>(__TAURI_INVOKE("get_public_inventory", { partnerSteamId })),
 	/**
 	 *  Creates an alert rule against the item a classifieds URL resolves to —
 	 *  reuses `market_analyzer_service::resolve_item_id_from_url` (Module 7)
@@ -274,6 +306,16 @@ export type ExportFormat = "csv" | "xlsx" | "json" | "pdf";
 
 export type FlipOpportunityView = {
 	item_name: string,
+	/**
+	 *  Display-only — same catalog-level fields `ItemTile`/`ItemIcon`
+	 *  already key off of. Flip candidates are defindex+quality-level
+	 *  (`ItemKey`), not a specific owned asset, so there's no paint/craft
+	 *  number/strange count here the way there is for an inventory item.
+	 */
+	quality: number,
+	effect_id: number | null,
+	killstreak_tier: number,
+	image_url: string | null,
 	buy_price_ref: number | null,
 	sell_price_ref: number | null,
 	quicksell_ref: number | null,
@@ -389,6 +431,20 @@ export type ItemSearchResult = {
 export type LedgerItemView = {
 	name: string,
 	value_ref: number | null,
+	/**
+	 *  Display-only fields carried over from Module 9's `TradeItemView` at
+	 *  import time — `null` for trades imported before this was added or
+	 *  for a genuinely unresolved item.
+	 */
+	quality: number | null,
+	effect_id: number | null,
+	killstreak_tier: number | null,
+	australium: boolean | null,
+	festivized: boolean | null,
+	paint_id: number | null,
+	craft_number: number | null,
+	strange_count: number | null,
+	image_url: string | null,
 };
 
 /**
@@ -444,6 +500,17 @@ export type ListingRow = {
 	steam_name: string | null,
 	price_ref: number | null,
 	age_hours: number | null,
+};
+
+export type PartnerItemView = {
+	asset_id: string,
+	name: string,
+	quality: number,
+	effect_id: number | null,
+	killstreak_tier: number,
+	australium: boolean,
+	festivized: boolean,
+	image_url: string | null,
 };
 
 export type PlWindowView = {
@@ -548,6 +615,21 @@ export type TradeItemView = {
 	 *  zero-value item.
 	 */
 	estimated_ref: number | null,
+	/**
+	 *  The remaining fields are for display only (icon, quality color,
+	 *  badges in the Item Detail modal) — `rate_trade` never reads them,
+	 *  only `estimated_ref`. All `null` for an unresolved item.
+	 */
+	asset_id: string | null,
+	quality: number | null,
+	effect_id: number | null,
+	killstreak_tier: number | null,
+	australium: boolean | null,
+	festivized: boolean | null,
+	paint_id: number | null,
+	craft_number: number | null,
+	strange_count: number | null,
+	image_url: string | null,
 };
 
 export type TradeLedgerView = {

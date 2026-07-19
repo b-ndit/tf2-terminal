@@ -84,8 +84,30 @@ async fn value_given_side_resolves_cached_assets_and_flags_unresolved() {
         .unwrap();
     seed_listing(&pool, "l1", &key, "sell", 60.0, 1000).await;
 
-    let mut my_item_ids = HashMap::new();
-    my_item_ids.insert("asset-known".to_string(), item_id);
+    let mut my_items = HashMap::new();
+    my_items.insert(
+        "asset-known".to_string(),
+        InventoryItemView {
+            asset_id: "asset-known".to_string(),
+            item_id,
+            defindex: key.defindex as i64,
+            name: "Mann Co. Supply Crate Key".to_string(),
+            quality: key.quality as u8 as i64,
+            effect_id: None,
+            killstreak_tier: key.killstreak_tier as u8 as i64,
+            australium: key.australium,
+            festivized: key.festivized,
+            craftable: key.craftable,
+            craft_number: None,
+            paint_id: None,
+            strange_count: None,
+            tradable: true,
+            marketable: None,
+            acquired_ts: None,
+            last_seen_ts: 1000,
+            image_url: None,
+        },
+    );
 
     let assets = vec![
         TradeOfferAsset {
@@ -96,15 +118,18 @@ async fn value_given_side_resolves_cached_assets_and_flags_unresolved() {
         },
     ];
 
-    let result = value_given_side(&pool, &my_item_ids, &assets, 2000)
+    let result = value_given_side(&pool, &my_items, &assets, 2000)
         .await
         .unwrap();
 
     assert_eq!(result.views.len(), 2);
     assert_eq!(result.views[0].name, "Mann Co. Supply Crate Key");
     assert!(result.views[0].estimated_ref.is_some());
+    assert_eq!(result.views[0].asset_id, Some("asset-known".to_string()));
+    assert_eq!(result.views[0].quality, Some(Quality::Unique as u8));
     assert_eq!(result.views[1].name, "Unresolved Item");
     assert_eq!(result.views[1].estimated_ref, None);
+    assert_eq!(result.views[1].asset_id, None);
     assert_eq!(result.trade_side.items.len(), 2);
 
     pool.close().await;
@@ -136,8 +161,11 @@ async fn value_received_side_resolves_partner_items_and_flags_unresolved() {
     // No schema/inventory sync has named defindex 45 in this test DB, so
     // the fallback name kicks in.
     assert_eq!(result.views[0].name, "Unknown Item 45");
+    assert_eq!(result.views[0].asset_id, Some("555".to_string()));
+    assert_eq!(result.views[0].quality, Some(6));
     assert_eq!(result.views[1].name, "Unresolved Item");
     assert_eq!(result.views[1].estimated_ref, None);
+    assert_eq!(result.views[1].asset_id, None);
 
     pool.close().await;
     std::fs::remove_dir_all(&dir).ok();
@@ -207,10 +235,30 @@ async fn cache_trade_analysis_writes_a_retrievable_entry_for_module_12() {
         given_items: vec![TradeItemView {
             name: "Key".to_string(),
             estimated_ref: Some(60.0),
+            asset_id: None,
+            quality: None,
+            effect_id: None,
+            killstreak_tier: None,
+            australium: None,
+            festivized: None,
+            paint_id: None,
+            craft_number: None,
+            strange_count: None,
+            image_url: None,
         }],
         received_items: vec![TradeItemView {
             name: "Hat".to_string(),
             estimated_ref: Some(80.0),
+            asset_id: None,
+            quality: None,
+            effect_id: None,
+            killstreak_tier: None,
+            australium: None,
+            festivized: None,
+            paint_id: None,
+            craft_number: None,
+            strange_count: None,
+            image_url: None,
         }],
         stars: 5,
         given_total_ref: 60.0,

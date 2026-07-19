@@ -170,9 +170,6 @@ impl ItemsRepo {
         Ok(id)
     }
 
-    // Consumed by Module 4/7's item detail lookups; unit-tested here in the
-    // meantime.
-    #[allow(dead_code)]
     pub async fn find_by_id(pool: &SqlitePool, id: i64) -> AppResult<Option<ItemRow>> {
         let row = sqlx::query_as::<_, ItemRow>("SELECT * FROM items WHERE id = ?")
             .bind(id)

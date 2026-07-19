@@ -9,6 +9,7 @@ use crate::error::AppResult;
 use crate::infra::config::{AppPaths, Config};
 use crate::infra::db;
 use crate::infra::plugins::runtime::PluginRuntime;
+use crate::infra::steam::trade_send::SteamSessionClient;
 use crate::infra::steam::SteamApiClient;
 use crate::services::history_recorder::HistoryRecorder;
 use crate::services::market_data_service::MarketDataService;
@@ -43,6 +44,9 @@ pub struct AppState {
     pub db: SqlitePool,
     pub paths: AppPaths,
     pub steam_api: SteamApiClient,
+    /// Separate from `steam_api` — a different host, auth model (session
+    /// cookies, not a Web API key), and rate limit (`infra::steam::trade_send`).
+    pub steam_session: SteamSessionClient,
     pub market_data: Arc<MarketDataService>,
     pub plugin_runtime: Arc<PluginRuntime>,
     _log_guard: WorkerGuard,
@@ -90,6 +94,7 @@ pub async fn build() -> AppResult<AppState> {
         db,
         paths,
         steam_api: SteamApiClient::new(),
+        steam_session: SteamSessionClient::new(),
         market_data,
         plugin_runtime,
         _log_guard,

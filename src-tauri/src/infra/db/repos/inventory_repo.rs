@@ -146,6 +146,42 @@ impl InventoryRepo {
         Ok(query.fetch_all(pool).await?)
     }
 
+    /// Same resolution as [`Self::find_by_asset_ids`], but joined against
+    /// `items` for the full display shape (name, quality, icon, and the
+    /// per-asset attributes `ExistingAsset` doesn't carry) — used wherever
+    /// a trade offer's own items need the same detail an inventory grid
+    /// tile shows, not just their catalog identity.
+    pub async fn find_view_by_asset_ids(
+        pool: &SqlitePool,
+        steam_id: &str,
+        asset_ids: &[String],
+    ) -> AppResult<Vec<InventoryItemView>> {
+        if asset_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let placeholders = vec!["?"; asset_ids.len()].join(",");
+        let sql = format!(
+            r#"
+            SELECT
+                inv.asset_id, inv.item_id, it.defindex, it.name, it.quality, it.effect_id, it.killstreak_tier,
+                it.australium, it.festivized, it.craftable,
+                inv.craft_number, inv.paint_id, inv.strange_count, inv.tradable, inv.marketable,
+                inv.acquired_ts, inv.last_seen_ts, it.image_url
+            FROM inventory_items inv
+            JOIN items it ON it.id = inv.item_id
+            WHERE inv.steam_id = ? AND inv.asset_id IN ({placeholders})
+            "#
+        );
+        // Safe: the only dynamic part is the placeholder *count*, derived
+        // from asset_ids.len(), not any interpolated data (same pattern as
+        // find_by_asset_ids/remove_by_asset_ids above).
+        let mut query = sqlx::query_as::<_, InventoryItemView>(sqlx::AssertSqlSafe(sql)).bind(steam_id);
+        for id in asset_ids {
+            query = query.bind(id);
+        }
+        Ok(query.fetch_all(pool).await?)
+    }
+
     /// Removes assets no longer present in the latest fetch (traded away,
     /// consumed, etc).
     pub async fn remove_by_asset_ids(pool: &SqlitePool, asset_ids: &[String]) -> AppResult<()> {

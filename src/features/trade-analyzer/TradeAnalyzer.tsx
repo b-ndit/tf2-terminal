@@ -1,5 +1,11 @@
-import { useActiveTrades } from "./api";
+import { useState } from "react";
+import { useAcceptTradeOffer, useActiveTrades, useDeclineTradeOffer } from "./api";
 import type { AnalyzedTradeOffer } from "./api";
+import { ItemIcon } from "../backpack/ItemIcon";
+import { qualityColor } from "../backpack/quality";
+import { useItemDetailStore } from "../../stores/itemDetailStore";
+import { detailableFromTradeItemView } from "../item-detail/types";
+import { useHasSteamSession } from "../settings/api";
 
 const STARS_MAX = 5;
 
@@ -105,12 +111,105 @@ function TradeCard({ trade }: { trade: AnalyzedTradeOffer }) {
         </ul>
       )}
 
+      <TradeActions trade={trade} />
+
       {trade.counteroffer_additional_ref !== null && <CounterofferSuggestion trade={trade} />}
     </div>
   );
 }
 
+/** Accept/decline are real, irreversible actions against the user's actual
+ * Steam account (Settings → "Steam Session") — require an explicit
+ * confirm step before firing rather than a bare one-click button. */
+function TradeActions({ trade }: { trade: AnalyzedTradeOffer }) {
+  const { data: sessionConnected } = useHasSteamSession();
+  const accept = useAcceptTradeOffer();
+  const decline = useDeclineTradeOffer();
+  const [confirming, setConfirming] = useState<"accept" | "decline" | null>(null);
+
+  if (sessionConnected === false) {
+    return (
+      <p className="mt-3 text-xs text-fg-subtle">
+        Connect a Steam session in Settings to accept or decline this offer from here.
+      </p>
+    );
+  }
+
+  const error = accept.error ?? decline.error;
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      {confirming === "accept" ? (
+        <>
+          <span className="text-xs text-amber-300">Accept this trade for real?</span>
+          <button
+            type="button"
+            disabled={accept.isPending}
+            onClick={() => {
+              accept.mutate(
+                { tradeOfferId: trade.trade_offer_id, partnerSteamId: trade.partner_steam_id },
+                { onSuccess: () => setConfirming(null) },
+              );
+            }}
+            className="rounded bg-quality-genuine px-3 py-1 text-xs font-medium text-black hover:opacity-90 disabled:opacity-50"
+          >
+            {accept.isPending ? "Accepting…" : "Confirm Accept"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirming(null)}
+            className="rounded bg-charcoal-border px-3 py-1 text-xs hover:opacity-90"
+          >
+            Cancel
+          </button>
+        </>
+      ) : confirming === "decline" ? (
+        <>
+          <span className="text-xs text-amber-300">Decline this trade?</span>
+          <button
+            type="button"
+            disabled={decline.isPending}
+            onClick={() => {
+              decline.mutate(trade.trade_offer_id, { onSuccess: () => setConfirming(null) });
+            }}
+            className="rounded bg-red-900 px-3 py-1 text-xs font-medium text-red-100 hover:opacity-90 disabled:opacity-50"
+          >
+            {decline.isPending ? "Declining…" : "Confirm Decline"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirming(null)}
+            className="rounded bg-charcoal-border px-3 py-1 text-xs hover:opacity-90"
+          >
+            Cancel
+          </button>
+        </>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={() => setConfirming("accept")}
+            className="rounded bg-quality-genuine px-3 py-1 text-xs font-medium text-black hover:opacity-90"
+          >
+            Accept
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirming("decline")}
+            className="rounded bg-charcoal-border px-3 py-1 text-xs hover:opacity-90"
+          >
+            Decline
+          </button>
+        </>
+      )}
+      {error && <p className="w-full text-xs text-red-400">{error.message}</p>}
+    </div>
+  );
+}
+
 function ItemList({ title, items }: { title: string; items: AnalyzedTradeOffer["given_items"] }) {
+  const openItemDetail = useItemDetailStore((s) => s.open);
+
   return (
     <div className="rounded border border-charcoal-border">
       <div className="border-b border-charcoal-border px-3 py-1.5 text-xs font-medium text-fg-muted">{title}</div>
@@ -119,9 +218,21 @@ function ItemList({ title, items }: { title: string; items: AnalyzedTradeOffer["
       ) : (
         <ul className="divide-y divide-charcoal-border">
           {items.map((item, index) => (
-            <li key={`${item.name}-${index}`} className="flex items-center justify-between px-3 py-1.5 text-sm">
-              <span className={item.estimated_ref === null ? "italic text-fg-subtle" : "text-fg"}>{item.name}</span>
-              <span className="text-xs text-fg-muted">{formatRef(item.estimated_ref)}</span>
+            <li key={`${item.name}-${index}`}>
+              <button
+                type="button"
+                onClick={() => openItemDetail(detailableFromTradeItemView(item))}
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-charcoal-border"
+              >
+                <ItemIcon imageUrl={item.image_url} alt={item.name} size="h-6 w-6" />
+                <span
+                  className={`flex-1 ${item.estimated_ref === null ? "italic text-fg-subtle" : "text-fg"}`}
+                  style={item.quality !== null ? { color: qualityColor(item.quality) } : undefined}
+                >
+                  {item.name}
+                </span>
+                <span className="text-xs text-fg-muted">{formatRef(item.estimated_ref)}</span>
+              </button>
             </li>
           ))}
         </ul>
@@ -139,8 +250,10 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-// No Steam write-calls: this only formats a message for the user to send
-// themselves (docs/DESIGN.md §2 — analysis only, no trade automation).
+// Unlike TradeActions above, this doesn't call Steam at all — it only
+// formats a message for the user to send themselves via chat, since a
+// counteroffer needs to change the actual item/ref split, not just
+// accept/decline the existing one.
 function CounterofferSuggestion({ trade }: { trade: AnalyzedTradeOffer }) {
   const additionalRef = trade.counteroffer_additional_ref ?? 0;
   const keysBreakdown =

@@ -3,6 +3,8 @@ import { DockviewReact, type DockviewApi, type DockviewReadyEvent } from "dockvi
 import "dockview/dist/styles/dockview.css";
 import { useLogoutSteam } from "../../features/auth/api";
 import { useSyncInventory } from "../../features/backpack/api";
+import { ItemDetailModal } from "../../features/item-detail/ItemDetailModal";
+import { SendOfferForm } from "../../features/trade-analyzer/SendOfferForm";
 import { useThemeStore, type ThemeName } from "../../stores/themeStore";
 import {
   PANEL_TITLES,
@@ -171,6 +173,9 @@ export function WorkspaceShell({ steamId }: { steamId: string }) {
           onReady={onReady}
         />
       </div>
+
+      <ItemDetailModal />
+      <SendOfferForm />
     </div>
   );
 }

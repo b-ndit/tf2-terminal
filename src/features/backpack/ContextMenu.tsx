@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useBackpackStore } from "../../stores/backpackStore";
+import { useSendOfferStore } from "../../stores/sendOfferStore";
 import {
   useAddItemTag,
   useCreateTag,
@@ -21,6 +22,7 @@ export function ContextMenu({ items }: ContextMenuProps) {
   const contextMenu = useBackpackStore((s) => s.contextMenu);
   const closeContextMenu = useBackpackStore((s) => s.closeContextMenu);
   const selected = useBackpackStore((s) => s.selected);
+  const openSendOffer = useSendOfferStore((s) => s.open);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const setFavorite = useSetFavorite();
@@ -87,6 +89,11 @@ export function ContextMenu({ items }: ContextMenuProps) {
     forEachTarget((assetId) => setCustomLabel.mutate({ assetId, label: value.trim() || null }));
   }
 
+  function handleProposeTrade() {
+    openSendOffer(targetItems);
+    closeContextMenu();
+  }
+
   function handleNewTag() {
     const name = window.prompt("New tag name:");
     if (!name) return;
@@ -112,6 +119,8 @@ export function ContextMenu({ items }: ContextMenuProps) {
           {targetIds.length} items selected
         </div>
       )}
+      <MenuItem onClick={handleProposeTrade}>Propose Trade…</MenuItem>
+      <div className="border-t border-charcoal-border my-1" />
       <MenuItem onClick={() => forEachTarget((assetId) => setFavorite.mutate({ assetId, favorite: !allFavorite }))}>
         {allFavorite ? "Unfavorite" : "Favorite"}
       </MenuItem>

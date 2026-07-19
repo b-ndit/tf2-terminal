@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { useClearSecret, useHasSecret, useSetSecret, useSyncItemSchema, type SecretKind } from "./api";
+import {
+  useClearSecret,
+  useClearSteamSession,
+  useHasSecret,
+  useHasSteamSession,
+  useSetSecret,
+  useSetSteamSession,
+  useSyncItemSchema,
+  type SecretKind,
+} from "./api";
 
 interface SecretFieldConfig {
   kind: SecretKind;
@@ -46,6 +55,87 @@ export function Settings() {
         <SecretField key={field.kind} {...field} />
       ))}
       <SchemaSyncField />
+      <SteamSessionField />
+    </div>
+  );
+}
+
+function SteamSessionField() {
+  const { data: connected, isLoading } = useHasSteamSession();
+  const setSession = useSetSteamSession();
+  const clearSession = useClearSteamSession();
+  const [sessionId, setSessionId] = useState("");
+  const [loginSecure, setLoginSecure] = useState("");
+
+  return (
+    <div className="rounded border border-amber-900 bg-amber-950/20 p-3">
+      <div className="mb-1 flex items-center justify-between">
+        <span className="font-medium">Steam Session (trade offers)</span>
+        {!isLoading && (
+          <span className={connected ? "text-quality-genuine text-xs" : "text-fg-subtle text-xs"}>
+            {connected ? "Connected ✓" : "Not connected"}
+          </span>
+        )}
+      </div>
+      <p className="mb-2 text-xs text-fg-muted">
+        Lets the app send, accept, and decline real trade offers on your behalf — the Steam API key
+        above only lets it <em>read</em> offers. This uses Steam's unofficial website endpoints
+        (not the official Web API), authenticated with two cookies from your own logged-in browser
+        session — not covered by Steam's Web API terms, and carries the same account risk as any
+        third-party trading tool.
+      </p>
+      <p className="mb-2 text-xs text-fg-muted">
+        To connect: log into{" "}
+        <a href="https://steamcommunity.com" target="_blank" rel="noreferrer" className="text-quality-unique underline">
+          steamcommunity.com
+        </a>{" "}
+        in your browser, open DevTools (F12) → Application/Storage → Cookies →
+        steamcommunity.com, and copy the <code>sessionid</code> and <code>steamLoginSecure</code>{" "}
+        values below.
+      </p>
+      <div className="flex flex-col gap-2">
+        <input
+          type="password"
+          value={sessionId}
+          onChange={(e) => setSessionId(e.target.value)}
+          placeholder="sessionid"
+          className="rounded border border-charcoal-border bg-charcoal px-2 py-1 text-sm placeholder:text-fg-subtle"
+        />
+        <input
+          type="password"
+          value={loginSecure}
+          onChange={(e) => setLoginSecure(e.target.value)}
+          placeholder="steamLoginSecure"
+          className="rounded border border-charcoal-border bg-charcoal px-2 py-1 text-sm placeholder:text-fg-subtle"
+        />
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={!sessionId || !loginSecure || setSession.isPending}
+            onClick={() =>
+              setSession.mutate(
+                { sessionId, loginSecure },
+                { onSuccess: () => { setSessionId(""); setLoginSecure(""); } },
+              )
+            }
+            className="rounded bg-quality-unique px-3 py-1 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50"
+          >
+            {setSession.isPending ? "Saving…" : "Save"}
+          </button>
+          {connected && (
+            <button
+              type="button"
+              disabled={clearSession.isPending}
+              onClick={() => clearSession.mutate()}
+              className="rounded bg-charcoal-border px-3 py-1 text-sm hover:opacity-90 disabled:opacity-50"
+            >
+              Disconnect
+            </button>
+          )}
+        </div>
+      </div>
+      {setSession.isError && <p className="mt-1 text-xs text-red-400">{setSession.error.message}</p>}
+      {clearSession.isError && <p className="mt-1 text-xs text-red-400">{clearSession.error.message}</p>}
     </div>
   );
 }

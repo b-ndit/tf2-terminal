@@ -40,6 +40,9 @@ pub struct ItemValuation {
     pub avg_sell_listing_age_hours: Option<f64>,
     pub trend_d1_pct: Option<f64>,
     pub trend_d7_pct: Option<f64>,
+    /// The schema-sourced icon for this exact permutation, if the item
+    /// schema has been synced — `None` otherwise (`schema_service::sync`).
+    pub image_url: Option<String>,
 }
 
 /// Resolves `key` (creating the `items` row via `fallback_name` if this
@@ -56,6 +59,9 @@ pub async fn value_item_key(
         .await?
         .unwrap_or_else(|| fallback_name.to_string());
     let item_id = ItemsRepo::get_or_create(pool, key, &name).await?;
+    let image_url = ItemsRepo::find_by_id(pool, item_id)
+        .await?
+        .and_then(|row| row.image_url);
 
     let history = daily_history(pool, item_id).await?;
     let rows = MarketListingsRepo::list_for_item_key(pool, key).await?;
@@ -108,6 +114,7 @@ pub async fn value_item_key(
         avg_sell_listing_age_hours,
         trend_d1_pct: trend.d1,
         trend_d7_pct: trend.d7,
+        image_url,
     })
 }
 

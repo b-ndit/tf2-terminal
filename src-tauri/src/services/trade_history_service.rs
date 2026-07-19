@@ -44,6 +44,30 @@ pub struct TradeSyncSummary {
 pub struct LedgerItemView {
     pub name: String,
     pub value_ref: Option<f64>,
+    /// Display-only fields carried over from Module 9's `TradeItemView` at
+    /// import time. `#[serde(default)]` since `given_json`/`received_json`
+    /// for trades imported before this was added won't have these keys at
+    /// all — without it, deserializing an old row would fail outright and
+    /// `row_to_view`'s `unwrap_or_default()` would silently blank out that
+    /// trade's *entire* item list rather than just these new fields.
+    #[serde(default)]
+    pub quality: Option<u8>,
+    #[serde(default)]
+    pub effect_id: Option<u32>,
+    #[serde(default)]
+    pub killstreak_tier: Option<u8>,
+    #[serde(default)]
+    pub australium: Option<bool>,
+    #[serde(default)]
+    pub festivized: Option<bool>,
+    #[serde(default)]
+    pub paint_id: Option<i32>,
+    #[serde(default)]
+    pub craft_number: Option<i32>,
+    #[serde(default)]
+    pub strange_count: Option<i32>,
+    #[serde(default)]
+    pub image_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Type)]
@@ -152,6 +176,15 @@ fn to_ledger_items(items: Vec<TradeItemView>) -> Vec<LedgerItemView> {
         .map(|v| LedgerItemView {
             name: v.name,
             value_ref: v.estimated_ref,
+            quality: v.quality,
+            effect_id: v.effect_id,
+            killstreak_tier: v.killstreak_tier,
+            australium: v.australium,
+            festivized: v.festivized,
+            paint_id: v.paint_id,
+            craft_number: v.craft_number,
+            strange_count: v.strange_count,
+            image_url: v.image_url,
         })
         .collect()
 }
@@ -161,6 +194,15 @@ fn unresolved_items(count: usize) -> Vec<LedgerItemView> {
         .map(|_| LedgerItemView {
             name: UNRESOLVED_ITEM_NAME.to_string(),
             value_ref: None,
+            quality: None,
+            effect_id: None,
+            killstreak_tier: None,
+            australium: None,
+            festivized: None,
+            paint_id: None,
+            craft_number: None,
+            strange_count: None,
+            image_url: None,
         })
         .collect()
 }

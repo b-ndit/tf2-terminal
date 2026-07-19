@@ -8,6 +8,7 @@ pub mod item_valuation;
 pub mod live_feed;
 pub mod market_analyzer_service;
 pub mod market_data_service;
+pub mod partner_inventory_service;
 pub mod plugin_service;
 pub mod portfolio_service;
 pub mod schema_service;
